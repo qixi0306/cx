@@ -441,7 +441,7 @@ input, textarea {
 #btnAddCard {
   flex: 0 0 auto;
   height: 38px;
-  padding: 0 20px;
+  padding: 0 18px;
   border-radius: 8px;
   background: #07c160;
   color: #fff;
@@ -491,10 +491,11 @@ input, textarea {
 
 .batch-close:active { background: rgba(0, 0, 0, .06); }
 
-#batchInput {
+#batchInput,
+#pinyinInput {
   width: 100%;
-  min-height: 120px;
-  max-height: 260px;
+  min-height: 110px;
+  max-height: 240px;
   padding: 10px 11px;
   border: 1px solid #e2e2e2;
   border-radius: 8px;
@@ -508,9 +509,16 @@ input, textarea {
   transition: border-color .15s, background .15s;
 }
 
-#batchInput:focus {
+#batchInput:focus,
+#pinyinInput:focus {
   border-color: #07c160;
   background: #fff;
+}
+
+#pinyinInput {
+  min-height: 62px;
+  max-height: 120px;
+  letter-spacing: .5px;
 }
 
 .batch-modes {
@@ -551,7 +559,7 @@ input, textarea {
 .primary-btn {
   flex: 0 0 auto;
   height: 38px;
-  padding: 0 20px;
+  padding: 0 18px;
   border-radius: 8px;
   background: #07c160;
   color: #fff;
@@ -561,6 +569,46 @@ input, textarea {
 }
 
 .primary-btn:active { background: #06ad56; }
+
+/* ---------- 拼音生成面板 ---------- */
+.py-arrow {
+  text-align: center;
+  color: #c4c4c4;
+  font-size: 16px;
+  line-height: 1;
+  margin: 8px 0 4px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.py-preview-label {
+  font-size: 13px;
+  color: var(--wx-sub);
+  margin: 8px 0 6px;
+}
+
+#pinyinResult {
+  width: 100%;
+  min-height: 76px;
+  max-height: 200px;
+  padding: 10px 11px;
+  border: 1px solid #cdebd8;
+  border-radius: 8px;
+  background: #f2fbf6;
+  font-size: 15px;
+  line-height: 1.6;
+  resize: vertical;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  color: #1a1a1a;
+  transition: border-color .15s, background .15s;
+}
+
+#pinyinResult:focus {
+  border-color: #07c160;
+  background: #fff;
+}
 
 /* ---------- 字卡列表 ---------- */
 .card-list {
@@ -670,7 +718,7 @@ input, textarea {
 .mini-btn {
   flex: 0 0 auto;
   height: 32px;
-  padding: 0 14px;
+  padding: 0 12px;
   border-radius: 8px;
   background: #f2f2f2;
   color: #333;
@@ -832,8 +880,34 @@ input, textarea {
         <div class="row">
           <span class="hint" id="cardCount">共 0 张字卡</span>
           <div class="row-btns">
+            <button class="mini-btn" id="btnTogglePinyin">拼音生成</button>
             <button class="mini-btn" id="btnToggleBatch">批量导入</button>
             <button id="btnAddCard">添加字卡</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 拼音生成面板 -->
+      <div class="batch-panel" id="pinyinPanel" hidden>
+        <div class="batch-head">
+          <span class="title">拼音生成字卡</span>
+          <button class="batch-close" id="btnClosePinyin" aria-label="收起拼音生成">×</button>
+        </div>
+
+        <textarea id="pinyinInput" spellcheck="false" autocapitalize="off" autocorrect="off"
+                  placeholder="输入拼音，例如：&#10;ni hao&#10;woxiangni&#10;jintian xinqing henhao"></textarea>
+
+        <div class="py-arrow">↓</div>
+
+        <div class="py-preview-label">转换结果（可直接修改）</div>
+        <textarea id="pinyinResult" spellcheck="false"
+                  placeholder="转换出的中文会显示在这里…"></textarea>
+
+        <div class="batch-foot">
+          <span class="hint" id="pinyinHint">输入拼音试试</span>
+          <div class="row-btns">
+            <button class="mini-btn" id="btnPinyinClear">清空</button>
+            <button class="primary-btn" id="btnPinyinSave">保存为字卡</button>
           </div>
         </div>
       </div>
@@ -1041,848 +1115,644 @@ input, textarea {
   };
 
   /* ============================================================
-     全局状态
+     拼音词库（离线，纯本地）
+     ------------------------------------------------------------
+     单字表格式：每行「拼音 + 空格 + 候选字（常用度从高到低）」
+     词组表格式：每行「拼音 + 空格 + 词语」
      ============================================================ */
-  var state = {
-    messages: store.read(KEYS.messages, []),
-    cards:    store.read(KEYS.cards, []),
-    settings: Object.assign({}, DEFAULT_SETTINGS, store.read(KEYS.settings, {}))
-  };
-
-  if (!Array.isArray(state.messages)) state.messages = [];
-  if (!Array.isArray(state.cards))    state.cards = [];
-
-  var lastCardId = null;   // 避免连续抽到同一张
-  var replyTimer = null;
-  var typingEl   = null;
-
-  /* ============================================================
-     持久化
-     ============================================================ */
-  function saveMessages() {
-    if (state.messages.length > MAX_MESSAGES) {
-      state.messages = state.messages.slice(state.messages.length - MAX_MESSAGES);
-    }
-    store.write(KEYS.messages, state.messages);
-  }
-
-  function saveCards()    { store.write(KEYS.cards, state.cards); }
-  function saveSettings() { store.write(KEYS.settings, state.settings); }
-
-  /* ============================================================
-     视口高度（处理手机输入法弹出）
-     ============================================================ */
-  function updateViewport() {
-    var root = document.documentElement;
-    var vv = window.visualViewport;
-
-    if (vv && typeof vv.height === 'number' && vv.height > 0) {
-      root.style.setProperty('--app-height', vv.height + 'px');
-      root.style.setProperty('--app-top', (vv.offsetTop || 0) + 'px');
-    } else {
-      root.style.setProperty('--app-height', window.innerHeight + 'px');
-      root.style.setProperty('--app-top', '0px');
-    }
-  }
-
-  /* ============================================================
-     头像 / 名字
-     ============================================================ */
-  function displayName(role) {
-    var s = state.settings;
-    var n = role === 'user' ? s.userName : s.taName;
-    n = (n == null ? '' : String(n)).trim();
-    if (n) return n;
-    return role === 'user' ? '我' : 'TA';
-  }
-
-  function avatarOf(role) {
-    return role === 'user' ? state.settings.userAvatar : state.settings.taAvatar;
-  }
-
-  function applyAvatar(el, dataUrl, name) {
-    if (dataUrl) {
-      el.style.backgroundImage = 'url("' + dataUrl + '")';
-      el.style.backgroundColor = '#d6d6d6';
-      el.textContent = '';
-    } else {
-      el.style.backgroundImage = 'none';
-      el.style.backgroundColor = colorFromString(name || '?');
-      el.textContent = (String(name || '?').trim().charAt(0)) || '?';
-    }
-  }
-
-  /* ============================================================
-     聊天：渲染
-     ============================================================ */
-  function buildMessageEl(m) {
-    var role = m.role === 'user' ? 'user' : 'ta';
-
-    var row = document.createElement('div');
-    row.className = 'msg-row ' + (role === 'user' ? 'me' : 'ta');
-    row.dataset.id = m.id;
-
-    var av = document.createElement('div');
-    av.className = 'avatar';
-    applyAvatar(av, avatarOf(role), displayName(role));
-
-    var bubble = document.createElement('div');
-    bubble.className = 'bubble';
-    bubble.textContent = m.text;   // textContent 天然防注入
-
-    row.appendChild(av);
-    row.appendChild(bubble);
-    return row;
-  }
-
-  function renderChat() {
-    var box = $('messages');
-    box.innerHTML = '';
-    var frag = document.createDocumentFragment();
-    for (var i = 0; i < state.messages.length; i++) {
-      frag.appendChild(buildMessageEl(state.messages[i]));
-    }
-    box.appendChild(frag);
-  }
-
-  function scrollToBottom(smooth) {
-    var el = $('chatScroll');
-    if (!el) return;
-    requestAnimationFrame(function () {
-      try {
-        el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
-      } catch (e) {
-        el.scrollTop = el.scrollHeight;
-      }
-    });
-  }
-
-  function addMessage(role, text, persist) {
-    var m = {
-      id: uid(),
-      role: role,
-      text: String(text),
-      ts: Date.now()
-    };
-    state.messages.push(m);
-
-    $('messages').appendChild(buildMessageEl(m));
-
-    if (persist !== false) saveMessages();
-    return m;
-  }
-
-  /* ============================================================
-     聊天：正在输入
-     ============================================================ */
-  function showTyping() {
-    if (typingEl) return;
-    var row = document.createElement('div');
-    row.className = 'msg-row ta';
-
-    var av = document.createElement('div');
-    av.className = 'avatar';
-    applyAvatar(av, avatarOf('ta'), displayName('ta'));
-
-    var bubble = document.createElement('div');
-    bubble.className = 'bubble typing-bubble';
-    bubble.innerHTML = '<span></span><span></span><span></span>';
-
-    row.appendChild(av);
-    row.appendChild(bubble);
-    $('messages').appendChild(row);
-    typingEl = row;
-    scrollToBottom(true);
-  }
-
-  function hideTyping() {
-    if (typingEl && typingEl.parentNode) {
-      typingEl.parentNode.removeChild(typingEl);
-    }
-    typingEl = null;
-  }
-
-  /* ============================================================
-     聊天：抽取字卡 & 回复
-     ============================================================ */
-  function pickCard() {
-    var pool = state.cards;
-    if (pool.length > 1 && lastCardId) {
-      var filtered = pool.filter(function (c) { return c.id !== lastCardId; });
-      if (filtered.length) pool = filtered;
-    }
-    var card = pool[Math.floor(Math.random() * pool.length)];
-    lastCardId = card.id;
-    return card;
-  }
-
-  function respondToUser() {
-    if (state.cards.length === 0) {
-      showToast('TA 的字卡库还是空的，先去添加几张吧');
-      return;
-    }
-
-    if (replyTimer) {
-      clearTimeout(replyTimer);
-      replyTimer = null;
-    }
-
-    showTyping();
-
-    var delay = 550 + Math.random() * 900;
-
-    replyTimer = setTimeout(function () {
-      replyTimer = null;
-      hideTyping();
-
-      var card = pickCard();
-      addMessage('ta', card.text);
-      scrollToBottom(true);
-    }, delay);
-  }
-
-  /* ============================================================
-     聊天：发送
-     ============================================================ */
-  function sendMessage() {
-    var input = $('input');
-    var text = input.value.trim();
-    if (!text) return;
-
-    input.value = '';
-    autoResizeInput();
-    updateSendState();
-
-    addMessage('user', text);
-    scrollToBottom(true);
-
-    respondToUser();
-  }
-
-  function autoResizeInput() {
-    var el = $('input');
-    el.style.height = 'auto';
-    var h = Math.min(el.scrollHeight, 110);
-    el.style.height = h + 'px';
-  }
-
-  function updateSendState() {
-    $('btnSend').disabled = $('input').value.trim().length === 0;
-  }
-
-  /* ============================================================
-     背景
-     ============================================================ */
-  function applyBackground() {
-    var area = $('chatScroll');
-    var bg = state.settings.bg;
-
-    if (!bg) {
-      area.style.background = '';
-      area.style.backgroundImage = '';
-      return;
-    }
-
-    if (bg.indexOf('data:') === 0) {
-      area.style.background = '#ededed';
-      area.style.backgroundImage = 'url("' + bg + '")';
-      area.style.backgroundSize = 'cover';
-      area.style.backgroundPosition = 'center';
-      area.style.backgroundRepeat = 'no-repeat';
-    } else {
-      area.style.backgroundImage = 'none';
-      area.style.background = bg;
-    }
-  }
-
-  /* ============================================================
-     图片处理：压缩为 dataURL
-     ============================================================ */
-  function fileToDataURL(file, maxSize) {
-    return new Promise(function (resolve, reject) {
-      var reader = new FileReader();
-
-      reader.onload = function () {
-        var img = new Image();
-        img.onload = function () {
-          try {
-            var w = img.naturalWidth || img.width;
-            var h = img.naturalHeight || img.height;
-            var scale = Math.min(1, maxSize / Math.max(w, h));
-            var tw = Math.max(1, Math.round(w * scale));
-            var th = Math.max(1, Math.round(h * scale));
-
-            var canvas = document.createElement('canvas');
-            canvas.width = tw;
-            canvas.height = th;
-            var ctx = canvas.getContext('2d');
-
-            ctx.fillStyle = '#ffffff';       // 透明图铺白底
-            ctx.fillRect(0, 0, tw, th);
-            ctx.drawImage(img, 0, 0, tw, th);
-
-            resolve(canvas.toDataURL('image/jpeg', 0.85));
-          } catch (err) {
-            reject(err);
-          }
-        };
-        img.onerror = reject;
-        img.src = reader.result;
-      };
-
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  }
-
-  function uploadFor(target) {
-    var picker = document.createElement('input');
-    picker.type = 'file';
-    picker.accept = 'image/*';
-    picker.style.position = 'fixed';
-    picker.style.left = '-9999px';
-
-    document.body.appendChild(picker);
-
-    picker.addEventListener('change', function () {
-      var file = picker.files && picker.files[0];
-
-      setTimeout(function () {
-        if (picker.parentNode) picker.parentNode.removeChild(picker);
-      }, 0);
-
-      if (!file) return;
-
-      var max = target === 'bg' ? 900 : 240;
-
-      fileToDataURL(file, max).then(function (dataUrl) {
-        if (target === 'bg') {
-          state.settings.bg = dataUrl;
-        } else {
-          state.settings[target] = dataUrl;
-        }
-        saveSettings();
-        applyBackground();
-        renderSettings();
-        renderChat();
-        scrollToBottom(false);
-        showToast('已保存');
-      }).catch(function (err) {
-        console.warn(err);
-        showToast('图片处理失败，换一张试试');
-      });
-    });
-
-    picker.click();
-  }
-
-  /* ============================================================
-     字卡页面 —— 列表渲染
-     ============================================================ */
-  function renderCards() {
-    var list = $('cardList');
-    var count = $('cardCount');
-
-    count.textContent = '共 ' + state.cards.length + ' 张字卡';
-
-    list.innerHTML = '';
-
-    if (state.cards.length === 0) {
-      var tip = document.createElement('div');
-      tip.className = 'empty-tip';
-      tip.textContent = '还没有字卡，添加第一张吧';
-      list.appendChild(tip);
-      return;
-    }
-
-    var frag = document.createDocumentFragment();
-
-    // 最新的排在最前面
-    for (var i = state.cards.length - 1; i >= 0; i--) {
-      (function (card) {
-        var item = document.createElement('div');
-        item.className = 'card-item';
-
-        var text = document.createElement('div');
-        text.className = 'card-text';
-        text.textContent = card.text;
-
-        var del = document.createElement('button');
-        del.className = 'card-del';
-        del.textContent = '删除';
-        del.addEventListener('click', function () {
-          if (window.confirm('确定要删除这张字卡吗？')) {
-            state.cards = state.cards.filter(function (c) { return c.id !== card.id; });
-            saveCards();
-            renderCards();
-          }
-        });
-
-        item.appendChild(text);
-        item.appendChild(del);
-        frag.appendChild(item);
-      })(state.cards[i]);
-    }
-
-    list.appendChild(frag);
-  }
-
-  /* ============================================================
-     字卡页面 —— 单张添加
-     ============================================================ */
-  function addCard() {
-    var ta = $('cardInput');
-    var text = ta.value.trim();
-
-    if (!text) {
-      showToast('请先输入字卡内容');
-      return;
-    }
-
-    if (state.cards.length >= MAX_CARDS) {
-      showToast('字卡数量已达上限（' + MAX_CARDS + ' 张）');
-      return;
-    }
-
-    state.cards.push({
-      id: uid(),
-      text: clampText(text, MAX_CARD_LEN),
-      ts: Date.now()
-    });
-
-    saveCards();
-
-    ta.value = '';
-    ta.style.height = '';
-    renderCards();
-    showToast('已添加');
-  }
-
-  /* ============================================================
-     字卡页面 —— 批量导入
-     ============================================================ */
-
-  /** 当前批量输入的分隔模式 */
-  function currentBatchMode() {
-    var checked = document.querySelector('input[name="batchMode"]:checked');
-    return checked ? checked.value : 'line';
-  }
-
-  /**
-   * 解析批量文本为字卡数组
-   * mode = 'line'  → 每行一条
-   * mode = 'blank' → 空行分隔（条目内部可含换行）
-   */
-  function parseBatch(text, mode) {
-    text = String(text == null ? '' : text).replace(/\r\n?/g, '\n');
-
-    var items = (mode === 'blank')
-      ? text.split(/\n[ \t]*\n/)
-      : text.split('\n');
-
-    var out = [];
-    for (var i = 0; i < items.length; i++) {
-      var s = items[i].trim();
-      if (s) out.push(s);
-    }
-    return out;
-  }
-
-  /** 实时刷新「将导入 N 张」 */
-  function updateBatchCount() {
-    var el = $('batchCount');
-    if (!el) return;
-    var items = parseBatch($('batchInput').value, currentBatchMode());
-    el.textContent = '将导入 ' + items.length + ' 张';
-  }
-
-  function openBatchPanel(open) {
-    var panel = $('batchPanel');
-    panel.hidden = !open;
-    if (open) {
-      updateBatchCount();
-      // 面板展开后滚动到可视区域
-      setTimeout(function () {
-        try {
-          panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        } catch (e) { /* ignore */ }
-      }, 60);
-    }
-  }
-
-  function importBatch() {
-    var text = $('batchInput').value;
-
-    if (!text.trim()) {
-      showToast('请先粘贴要导入的内容');
-      return;
-    }
-
-    var items = parseBatch(text, currentBatchMode());
-
-    if (items.length === 0) {
-      showToast('没有解析到可导入的内容');
-      return;
-    }
-
-    var remaining = MAX_CARDS - state.cards.length;
-    if (remaining <= 0) {
-      showToast('字卡数量已达上限（' + MAX_CARDS + ' 张）');
-      return;
-    }
-
-    // 已有内容做去重表
-    var existing = Object.create(null);
-    for (var k = 0; k < state.cards.length; k++) {
-      existing[state.cards[k].text] = true;
-    }
-
-    var added = 0;
-    var skipped = 0;       // 重复
-    var truncated = false; // 超出上限
-    var now = Date.now();
-
-    for (var i = 0; i < items.length; i++) {
-      if (added >= remaining) { truncated = true; break; }
-
-      var t = clampText(items[i], MAX_CARD_LEN);
-      if (!t) { continue; }
-      if (existing[t]) { skipped++; continue; }
-
-      existing[t] = true;
-      state.cards.push({ id: uid(), text: t, ts: now });
-      added++;
-    }
-
-    if (added === 0) {
-      showToast(skipped ? '这些内容与已有字卡重复了' : '没有可导入的内容');
-      return;
-    }
-
-    saveCards();
-    renderCards();
-
-    $('batchInput').value = '';
-    updateBatchCount();
-
-    var msg = '已导入 ' + added + ' 张字卡';
-    if (skipped)   msg += '，跳过重复 ' + skipped + ' 张';
-    if (truncated) msg += '，已达上限';
-    showToast(msg);
-  }
-
-  /** 读取本地 .txt 追加到批量输入框 */
-  function readTextFile() {
-    var picker = document.createElement('input');
-    picker.type = 'file';
-    picker.accept = '.txt,text/plain';
-    picker.style.position = 'fixed';
-    picker.style.left = '-9999px';
-
-    document.body.appendChild(picker);
-
-    picker.addEventListener('change', function () {
-      var file = picker.files && picker.files[0];
-
-      setTimeout(function () {
-        if (picker.parentNode) picker.parentNode.removeChild(picker);
-      }, 0);
-
-      if (!file) return;
-
-      var reader = new FileReader();
-
-      reader.onload = function () {
-        var txt = String(reader.result || '');
-        var ta = $('batchInput');
-
-        if (ta.value.trim()) {
-          ta.value = ta.value.replace(/\s+$/, '') + '\n' + txt;
-        } else {
-          ta.value = txt;
-        }
-
-        updateBatchCount();
-        showToast('已读取文件内容，确认后点「导入字卡」');
-      };
-
-      reader.onerror = function () {
-        showToast('文件读取失败');
-      };
-
-      reader.readAsText(file, 'utf-8');
-    });
-
-    picker.click();
-  }
-
-  /* ============================================================
-     设置页面
-     ============================================================ */
-  function renderBgOptions() {
-    var wrap = $('bgOptions');
-    wrap.innerHTML = '';
-
-    BG_PRESETS.forEach(function (p) {
-      var btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'bg-swatch';
-      btn.title = p.label;
-      btn.style.background = p.value;
-
-      var isDefault = (p.id === 'default');
-      var active = isDefault ? (!state.settings.bg) : (state.settings.bg === p.value);
-
-      if (active) btn.classList.add('active');
-
-      btn.addEventListener('click', function () {
-        state.settings.bg = isDefault ? '' : p.value;
-        saveSettings();
-        applyBackground();
-        renderBgOptions();
-      });
-
-      wrap.appendChild(btn);
-    });
-
-    // 自定义背景
-    var custom = document.createElement('button');
-    custom.type = 'button';
-    custom.className = 'bg-swatch bg-swatch-custom';
-    custom.title = '自定义背景';
-
-    if (state.settings.bg && state.settings.bg.indexOf('data:') === 0) {
-      custom.style.backgroundImage = 'url("' + state.settings.bg + '")';
-      custom.style.backgroundSize = 'cover';
-      custom.style.backgroundPosition = 'center';
-      custom.classList.add('active');
-    } else {
-      custom.textContent = '+';
-    }
-
-    custom.addEventListener('click', function () {
-      uploadFor('bg');
-    });
-
-    wrap.appendChild(custom);
-  }
-
-  function renderSettings() {
-    $('setUserName').value = state.settings.userName || '';
-    $('setTaName').value   = state.settings.taName || '';
-
-    applyAvatar($('prevUserAvatar'), state.settings.userAvatar, displayName('user'));
-    applyAvatar($('prevTaAvatar'),   state.settings.taAvatar,   displayName('ta'));
-
-    renderBgOptions();
-  }
-
-  function updateChatHeader() {
-    $('chatName').textContent = displayName('ta');
-  }
-
-  /* ============================================================
-     页面切换
-     ============================================================ */
-  function openPage(id) {
-    $(id).classList.add('active');
-  }
-
-  function closePage(id) {
-    $(id).classList.remove('active');
-    setTimeout(function () {
-      scrollToBottom(false);
-    }, 320);
-  }
-
-  /* ============================================================
-     初始化
-     ============================================================ */
-  function init() {
-    updateViewport();
-
-    window.addEventListener('resize', updateViewport);
-    window.addEventListener('orientationchange', function () {
-      setTimeout(updateViewport, 220);
-    });
-
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', updateViewport);
-      window.visualViewport.addEventListener('scroll', updateViewport);
-    }
-
-    /* ---------- 首屏渲染 ---------- */
-    applyBackground();
-    updateChatHeader();
-    renderChat();
-    renderCards();
-    renderSettings();
-    updateSendState();
-
-    setTimeout(function () { scrollToBottom(false); }, 60);
-
-    /* ---------- 聊天输入 ---------- */
-    var input = $('input');
-
-    input.addEventListener('input', function () {
-      autoResizeInput();
-      updateSendState();
-    });
-
-    input.addEventListener('focus', function () {
-      updateViewport();
-      setTimeout(function () {
-        updateViewport();
-        scrollToBottom(false);
-      }, 260);
-    });
-
-    input.addEventListener('blur', function () {
-      setTimeout(updateViewport, 120);
-    });
-
-    // 桌面端：Enter 发送，Shift+Enter 换行；移动端保持换行
-    input.addEventListener('keydown', function (e) {
-      if (e.key !== 'Enter') return;
-      var isTouch = ('ontouchstart' in window) ||
-                    (window.matchMedia && window.matchMedia('(hover: none)').matches);
-      if (!e.shiftKey && !isTouch) {
-        e.preventDefault();
-        sendMessage();
-      }
-    });
-
-    $('btnSend').addEventListener('click', sendMessage);
-
-    /* ---------- 打开二级页面 ---------- */
-    $('btnOpenCards').addEventListener('click', function () {
-      renderCards();
-      updateBatchCount();
-      openPage('viewCards');
-    });
-
-    $('btnOpenSettings').addEventListener('click', function () {
-      renderSettings();
-      openPage('viewSettings');
-    });
-
-    document.querySelectorAll('[data-back]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        closePage(btn.dataset.back);
-      });
-    });
-
-    /* ---------- 字卡：单张添加 ---------- */
-    $('btnAddCard').addEventListener('click', addCard);
-
-    $('cardInput').addEventListener('keydown', function (e) {
-      // Ctrl / Cmd + Enter 快速添加
-      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault();
-        addCard();
-      }
-    });
-
-    /* ---------- 字卡：批量导入 ---------- */
-    $('btnToggleBatch').addEventListener('click', function () {
-      openBatchPanel($('batchPanel').hidden);
-    });
-
-    $('btnCloseBatch').addEventListener('click', function () {
-      openBatchPanel(false);
-    });
-
-    $('batchInput').addEventListener('input', updateBatchCount);
-
-    document.querySelectorAll('input[name="batchMode"]').forEach(function (radio) {
-      radio.addEventListener('change', updateBatchCount);
-    });
-
-    $('btnBatchImport').addEventListener('click', importBatch);
-    $('btnBatchFile').addEventListener('click', readTextFile);
-
-    /* ---------- 设置：名字 ---------- */
-    var nameTimer = null;
-    function onNameChange() {
-      state.settings.userName = clampText($('setUserName').value, 12);
-      state.settings.taName   = clampText($('setTaName').value, 12);
-      saveSettings();
-      updateChatHeader();
-
-      clearTimeout(nameTimer);
-      nameTimer = setTimeout(function () {
-        renderChat();
-        renderSettings();
-      }, 260);
-    }
-
-    $('setUserName').addEventListener('input', onNameChange);
-    $('setTaName').addEventListener('input', onNameChange);
-
-    /* ---------- 设置：上传头像 / 背景 ---------- */
-    document.querySelectorAll('[data-upload]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        uploadFor(btn.dataset.upload);
-      });
-    });
-
-    /* ---------- 设置：数据管理 ---------- */
-    $('btnClearMessages').addEventListener('click', function () {
-      if (!window.confirm('确定要清空全部聊天记录吗？此操作不可撤销。')) return;
-      state.messages = [];
-      saveMessages();
-      renderChat();
-      showToast('聊天记录已清空');
-    });
-
-    $('btnResetAll').addEventListener('click', function () {
-      if (!window.confirm('确定要重置全部数据吗？\n聊天记录、字卡、头像和设置都会被清除。')) return;
-
-      try {
-        localStorage.removeItem(KEYS.messages);
-        localStorage.removeItem(KEYS.cards);
-        localStorage.removeItem(KEYS.settings);
-      } catch (e) { /* ignore */ }
-
-      state.messages = [];
-      state.cards = [];
-      state.settings = Object.assign({}, DEFAULT_SETTINGS);
-
-      lastCardId = null;
-
-      applyBackground();
-      updateChatHeader();
-      renderChat();
-      renderCards();
-      renderSettings();
-
-      if (!$('batchPanel').hidden) {
-        $('batchInput').value = '';
-        updateBatchCount();
-      }
-
-      showToast('已重置全部数据');
-    });
-
-    /* ---------- 页面重新可见时校准视口 ---------- */
-    document.addEventListener('visibilitychange', function () {
-      if (!document.hidden) {
-        updateViewport();
-        setTimeout(function () { scrollToBottom(false); }, 120);
-      }
-    });
-  }
-
-  /* ============================================================
-     启动
-     ============================================================ */
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
-
-})();
-</script>
-</body>
-</html>
+  var PY_SINGLE_RAW = [
+    'a 啊阿',
+    'ai 爱哎唉矮挨碍',
+    'an 安按案暗岸',
+    'ang 昂',
+    'ao 奥凹熬傲',
+    'ba 把八吧爸巴拔罢霸',
+    'bai 白百摆败拜',
+    'ban 半办班般板搬伴版',
+    'bang 帮棒绑榜邦',
+    'bao 报包保抱宝暴薄爆',
+    'bei 被北背杯备悲倍贝辈',
+    'ben 本奔笨',
+    'beng 蹦',
+    'bi 比必笔毕币闭壁避鼻彼逼',
+    'bian 边变便遍编辨辩',
+    'biao 表标彪',
+    'bie 别',
+    'bin 宾滨',
+    'bing 并病冰兵饼丙',
+    'bo 波播博伯薄拨脖驳',
+    'bu 不部步布补捕怖',
+    'ca 擦',
+    'cai 才菜猜彩财采裁',
+    'can 参残餐惨灿',
+    'cang 藏仓苍',
+    'cao 草操曹槽',
+    'ce 测策侧册',
+    'ceng 层曾',
+    'cha 查差茶插叉察刹',
+    'chai 拆差柴',
+    'chan 产缠禅铲',
+    'chang 长常场唱厂尝肠昌畅',
+    'chao 超朝吵炒潮',
+    'che 车彻扯撤',
+    'chen 沉陈晨尘臣衬',
+    'cheng 成城程称承乘诚盛呈惩',
+    'chi 吃持迟尺池赤斥翅',
+    'chong 冲充重虫崇',
+    'chou 抽愁丑臭仇酬',
+    'chu 出除初处厨触储楚础',
+    'chuan 传穿船川喘',
+    'chuang 创床窗闯',
+    'chui 吹垂锤',
+    'chun 春纯唇蠢',
+    'ci 次此词刺磁辞慈',
+    'cong 从聪丛匆',
+    'cu 粗促醋',
+    'cun 存村寸',
+    'cuo 错措挫',
+    'da 大达打答搭',
+    'dai 带代待戴袋贷呆逮',
+    'dan 但单担淡蛋弹丹耽',
+    'dang 当党挡档',
+    'dao 到道倒岛刀导盗稻',
+    'de 的得德',
+    'deng 等登灯邓凳',
+    'di 地第低底弟帝敌递滴迪抵',
+    'dian 点电店典殿垫掂',
+    'diao 掉调雕吊',
+    'die 跌爹叠蝶',
+    'ding 定顶订丁钉鼎',
+    'diu 丢',
+    'dong 动东冬懂洞董栋',
+    'dou 都斗豆抖逗兜',
+    'du 读度独毒肚堵杜渡',
+    'duan 短段断端锻',
+    'dui 对队堆兑',
+    'dun 顿盾吨蹲炖',
+    'duo 多夺朵躲惰',
+    'e 额恶饿鹅俄娥',
+    'en 恩',
+    'er 而二儿耳尔饵',
+    'fa 发法罚乏伐',
+    'fan 反饭翻凡烦范犯繁返',
+    'fang 方放房防访仿纺',
+    'fei 非飞费肥废肺沸匪',
+    'fen 分份粉奋愤纷芬坟',
+    'feng 风封丰峰疯逢缝蜂',
+    'fo 佛',
+    'fou 否',
+    'fu 服福副父付负复富府妇附扶浮符幅伏肤腐',
+    'ga 嘎',
+    'gai 该改盖概钙',
+    'gan 干感赶敢甘肝杆尴',
+    'gang 刚钢岗港缸',
+    'gao 高告搞稿糕膏',
+    'ge 个各歌哥格割阁隔葛',
+    'gei 给',
+    'gen 跟根',
+    'geng 更耕',
+    'gong 工公共功供攻宫弓恭巩',
+    'gou 够狗构沟钩购勾',
+    'gu 古故顾骨鼓谷股雇估孤姑',
+    'gua 挂瓜刮寡',
+    'guai 怪乖拐',
+    'guan 关观管官馆惯冠灌',
+    'guang 光广逛',
+    'gui 贵归规鬼柜跪桂轨',
+    'gun 滚棍',
+    'guo 过国果锅裹',
+    'ha 哈',
+    'hai 还海孩害嗨',
+    'han 汉喊含寒韩汗函',
+    'hang 行航',
+    'hao 好号毫豪浩耗',
+    'he 和喝合河何盒贺呵荷核',
+    'hen 很恨狠痕',
+    'heng 横哼恒',
+    'hong 红洪宏轰烘虹',
+    'hou 后候厚猴吼喉',
+    'hu 呼胡湖户互护乎壶虎忽糊',
+    'hua 话花化画华划滑',
+    'huai 坏怀淮',
+    'huan 还换环欢缓患幻唤',
+    'huang 黄皇慌荒谎煌',
+    'hui 会回灰汇惠挥辉毁悔慧',
+    'hun 婚混魂昏浑',
+    'huo 活火或货获祸伙',
+    'ji 机几记及急即级极己计济继基击鸡积技季寄纪迹吉剂',
+    'jia 家加价假架甲佳夹嘉嫁',
+    'jian 见间件建简减健坚检剑渐肩艰荐',
+    'jiang 讲将江降奖强酱',
+    'jiao 叫教交脚角较觉焦骄郊搅',
+    'jie 接街姐解界结节届借介戒皆阶洁',
+    'jin 今进金近尽紧仅禁筋巾谨',
+    'jing 经京精竟静境景警净镜惊敬睛晶',
+    'jiong 窘',
+    'jiu 就九久酒旧救究纠揪',
+    'ju 句局举具据巨剧聚拒距俱',
+    'juan 卷捐倦',
+    'jue 决绝觉角掘',
+    'jun 军均君俊峻',
+    'ka 卡咖',
+    'kai 开凯慨',
+    'kan 看刊砍堪',
+    'kang 康抗扛',
+    'kao 考靠烤拷',
+    'ke 可科克课刻客颗渴壳',
+    'ken 肯啃恳',
+    'keng 坑',
+    'kong 空孔控恐',
+    'kou 口扣寇',
+    'ku 苦哭库裤酷',
+    'kua 跨夸垮',
+    'kuai 快块筷',
+    'kuan 宽款',
+    'kuang 况狂矿框旷',
+    'kui 亏愧溃',
+    'kun 困昆捆',
+    'kuo 阔扩',
+    'la 拉啦辣落蜡',
+    'lai 来赖',
+    'lan 蓝兰懒烂览拦栏',
+    'lang 浪郎狼朗廊',
+    'lao 老劳牢捞姥',
+    'le 了乐勒',
+    'lei 类累雷泪蕾',
+    'leng 冷愣',
+    'li 里理力立李离利历丽例粒礼厉励梨璃',
+    'lian 连联脸练恋莲怜链廉',
+    'liang 两量亮凉良粮梁辆',
+    'liao 了料聊疗辽',
+    'lie 列烈裂劣猎',
+    'lin 林临邻淋琳',
+    'ling 另令领灵零铃岭',
+    'liu 六流留刘柳溜',
+    'long 龙隆笼聋',
+    'lou 楼漏露搂',
+    'lu 路录陆炉露鲁鹿卢',
+    'lv 绿率律旅虑滤',
+    'luan 乱卵',
+    'lue 略',
+    'lun 论轮伦仑',
+    'luo 落罗络骆萝裸',
+    'ma 吗妈马嘛麻骂码蚂',
+    'mai 买卖麦迈埋',
+    'man 满慢曼漫蛮瞒',
+    'mang 忙盲茫芒莽',
+    'mao 毛猫冒帽贸矛茂',
+    'me 么',
+    'mei 没美每妹眉梅煤霉玫',
+    'men 们门闷',
+    'meng 梦猛蒙盟萌',
+    'mi 米密迷秘蜜谜眯',
+    'mian 面免棉眠绵勉',
+    'miao 秒苗庙妙描瞄',
+    'mie 灭',
+    'min 民敏',
+    'ming 明名命鸣铭',
+    'mo 么摸模末莫墨默磨膜魔',
+    'mou 某谋',
+    'mu 母目木幕牧墓慕亩',
+    'na 那哪拿纳娜呐',
+    'nai 奶耐乃',
+    'nan 难南男楠',
+    'nang 囊',
+    'nao 脑闹恼挠',
+    'ne 呢',
+    'nei 内',
+    'neng 能',
+    'ni 你尼泥呢妮拟逆匿腻',
+    'nian 年念粘碾',
+    'niang 娘',
+    'niao 鸟尿',
+    'nie 捏',
+    'nin 您',
+    'ning 宁凝',
+    'niu 牛扭纽妞',
+    'nong 农弄浓',
+    'nu 努怒奴',
+    'nv 女',
+    'nuan 暖',
+    'nue 虐',
+    'nuo 诺挪',
+    'o 哦噢',
+    'ou 欧偶呕殴',
+    'pa 怕爬趴帕',
+    'pai 拍排派牌徘',
+    'pan 判盘盼攀叛',
+    'pang 旁胖庞',
+    'pao 跑炮泡抛袍',
+    'pei 陪配培赔佩',
+    'pen 喷盆',
+    'peng 朋碰捧棚鹏膨',
+    'pi 皮批披疲脾匹劈屁',
+    'pian 片篇偏骗便',
+    'piao 票漂飘',
+    'pie 撇',
+    'pin 品拼贫频聘',
+    'ping 平评瓶凭苹屏乒',
+    'po 破坡泼颇婆迫',
+    'pou 剖',
+    'pu 普铺扑朴谱葡',
+    'qi 起其七期气奇齐骑妻旗汽器弃欺棋祈',
+    'qia 恰卡',
+    'qian 前千钱浅签欠牵迁潜歉',
+    'qiang 强枪墙抢腔',
+    'qiao 桥巧悄敲瞧',
+    'qie 切且窃茄',
+    'qin 亲琴勤侵秦寝芹',
+    'qing 请情青清轻晴庆倾顷',
+    'qiong 穷',
+    'qiu 求球秋丘邱',
+    'qu 去取区曲趣屈驱娶渠',
+    'quan 全权圈拳劝券泉',
+    'que 却确缺雀',
+    'qun 群裙',
+    'ran 然染燃',
+    'rang 让嚷',
+    'rao 绕扰',
+    're 热惹',
+    'ren 人认任仁忍韧刃',
+    'reng 仍扔',
+    'ri 日',
+    'rong 容荣融绒溶',
+    'rou 肉柔揉',
+    'ru 如入乳辱儒',
+    'ruan 软',
+    'rui 锐瑞',
+    'run 润',
+    'ruo 若弱',
+    'sa 撒洒',
+    'sai 赛塞腮',
+    'san 三散伞叁',
+    'sang 丧桑嗓',
+    'sao 扫骚嫂',
+    'se 色涩',
+    'sen 森',
+    'seng 僧',
+    'sha 杀沙啥傻纱刹',
+    'shai 晒筛',
+    'shan 山善闪衫扇删珊煽',
+    'shang 上商伤尚赏晌',
+    'shao 少烧绍稍勺哨',
+    'she 社设射舍蛇摄涉奢',
+    'shei 谁',
+    'shen 身深神什甚审申伸慎肾',
+    'sheng 生声胜升圣省剩绳盛',
+    'shi 是时事实十事市使世式试师诗失识史始士示视室食施湿石拾适释',
+    'shou 手受收首守瘦寿授售兽',
+    'shu 书数树输术舒熟属鼠叔束述蔬',
+    'shua 刷耍',
+    'shuai 帅摔甩',
+    'shuan 栓',
+    'shuang 双爽霜',
+    'shui 水谁睡税',
+    'shun 顺瞬',
+    'shuo 说硕',
+    'si 四死思司丝私似寺撕斯',
+    'song 送松宋颂诵',
+    'sou 搜艘',
+    'su 素速苏诉宿俗塑肃',
+    'suan 算酸蒜',
+    'sui 岁随虽碎遂穗',
+    'sun 孙损笋',
+    'suo 所缩索锁',
+    'ta 他她它塔踏塌',
+    'tai 太台抬态胎泰',
+    'tan 谈弹探坦叹摊贪滩',
+    'tang 堂糖躺汤唐烫',
+    'tao 套讨逃桃涛陶淘',
+    'te 特',
+    'teng 疼腾藤',
+    'ti 体提题踢替梯剃',
+    'tian 天田甜填添舔',
+    'tiao 条跳调挑',
+    'tie 铁贴帖',
+    'ting 听停厅挺庭亭',
+    'tong 同通痛童统桶筒铜',
+    'tou 头投偷透',
+    'tu 图土突途徒兔吐涂屠',
+    'tuan 团',
+    'tui 推退腿',
+    'tun 吞屯',
+    'tuo 托脱拖妥拓驼',
+    'wa 哇挖娃瓦袜',
+    'wai 外歪',
+    'wan 完万晚玩弯丸碗挽腕',
+    'wang 王往忘望网亡旺',
+    'wei 为位未味委围威危微维唯尾胃谓伟卫违',
+    'wen 问文闻温稳吻纹蚊',
+    'weng 翁',
+    'wo 我握窝卧沃',
+    'wu 无五物务误屋舞武午雾吴污乌悟勿',
+    'xi 西系细喜习希息洗席吸戏稀溪悉惜牺',
+    'xia 下夏吓虾霞峡狭',
+    'xian 先现线显险县鲜限闲献陷贤嫌',
+    'xiang 想向相像香乡响项详享箱象翔',
+    'xiao 小笑校效消晓销肖孝萧',
+    'xie 些写谢协鞋血斜械泄携歇',
+    'xin 心新信欣辛薪',
+    'xing 行性形星兴幸型姓醒刑',
+    'xiong 兄雄胸熊',
+    'xiu 休修秀绣羞',
+    'xu 需许须续虚序叙绪蓄',
+    'xuan 选宣旋悬玄',
+    'xue 学雪血穴',
+    'xun 寻讯迅训巡询循',
+    'ya 呀压牙亚雅鸭押芽丫',
+    'yan 眼言严烟沿演验颜燕延炎盐研掩厌宴',
+    'yang 样阳养杨洋扬羊央仰氧',
+    'yao 要药摇咬腰邀谣遥姚',
+    'ye 也业夜叶爷野页液',
+    'yi 一以已意义议医衣依移疑易益艺亦亿忆异遗乙',
+    'yin 因音引印银阴饮隐殷',
+    'ying 应英影营迎硬赢婴鹰樱蝇',
+    'yo 哟',
+    'yong 用永勇拥涌庸泳',
+    'you 有又由友右游优油尤幽邮幼诱忧犹',
+    'yu 于与语雨鱼玉遇育预域欲余予宇宙狱羽愚',
+    'yuan 元远愿园员原圆院源缘援',
+    'yue 月越约乐跃阅岳',
+    'yun 运云允晕孕',
+    'za 杂咋砸',
+    'zai 在再载灾栽仔',
+    'zan 咱暂赞攒',
+    'zang 脏葬藏',
+    'zao 早造遭糟枣灶澡',
+    'ze 则责泽择',
+    'zei 贼',
+    'zen 怎',
+    'zeng 增曾赠',
+    'zha 炸扎渣眨闸',
+    'zhai 摘窄债宅',
+    'zhan 站战占展斩粘沾盏',
+    'zhang 张长章掌涨帐账丈障',
+    'zhao 找照招着赵召兆',
+    'zhe 这着者折哲遮浙',
+    'zhen 真阵镇针震珍诊枕振',
+    'zheng 正整政争征证睁郑挣',
+    'zhi 之只知直至制指治志纸支职植值止致质置智执址枝织',
+    'zhong 中种重终众钟忠肿',
+    'zhou 周州洲轴舟皱昼粥',
+    'zhu 主住注助竹猪逐祝筑著驻珠煮',
+    'zhua 抓',
+    'zhuan 转专传赚砖',
+    'zhuang 装状庄撞壮',
+    'zhui 追坠',
+    'zhun 准',
+    'zhuo 桌着捉卓',
+    'zi 子自字资紫姿滋仔兹',
+    'zong 总宗纵综',
+    'zou 走奏邹',
+    'zu 组足族租祖阻',
+    'zuan 钻',
+    'zui 最嘴醉罪',
+    'zun 尊遵',
+    'zuo 做作坐左座昨'
+  ].join('\n');
+
+  var PY_WORDS_RAW = [
+    'nihao 你好',
+    'zaijian 再见',
+    'xiexie 谢谢',
+    'duibuqi 对不起',
+    'meiguanxi 没关系',
+    'wanshanghao 晚上好',
+    'zaoshanghao 早上好',
+    'wanan 晚安',
+    'shengrikuaile 生日快乐',
+    'xinniankuaile 新年快乐',
+    'woaini 我爱你',
+    'woxiangni 我想你',
+    'xiangni 想你',
+    'aini 爱你',
+    'haode 好的',
+    'haoba 好吧',
+    'keyi 可以',
+    'meiwenti 没问题',
+    'bushi 不是',
+    'shide 是的',
+    'zenmeyang 怎么样',
+    'weishenme 为什么',
+    'shenme 什么',
+    'zenme 怎么',
+    'zaina 在哪',
+    'zaiganma 在干嘛',
+    'ganma 干嘛',
+    'chifan 吃饭',
+    'shuijiao 睡觉',
+    'gongzuo 工作',
+    'xuexi 学习',
+    'shangban 上班',
+    'xiaban 下班',
+    'jintian 今天',
+    'mingtian 明天',
+    'zuotian 昨天',
+    'xianzai 现在',
+    'yihou 以后',
+    'yiqian 以前',
+    'keshi 可是',
+    'danshi 但是',
+    'suoyi 所以',
+    'yinwei 因为',
+    'ruguo 如果',
+    'haishi 还是',
+    'huozhe 或者',
+    'erqie 而且',
+    'ranhou 然后',
+    'zuihou 最后',
+    'yijing 已经',
+    'haiyou 还有',
+    'meiyou 没有',
+    'yiding 一定',
+    'keneng 可能',
+    'yinggai 应该',
+    'bixu 必须',
+    'xuyao 需要',
+    'xiangyao 想要',
+    'xihuan 喜欢',
+    'taoyan 讨厌',
+    'kaixin 开心',
+    'nanguo 难过',
+    'shengqi 生气',
+    'haipa 害怕',
+    'danxin 担心',
+    'jinzhang 紧张',
+    'fangxin 放心',
+    'zhuyi 注意',
+    'xiaoxin 小心',
+    'jiayou 加油',
+    'nuli 努力',
+    'chenggong 成功',
+    'shibai 失败',
+    'bangmang 帮忙',
+    'bangzhu 帮助',
+    'zhaogu 照顾',
+    'peiban 陪伴',
+    'xiangxin 相信',
+    'lijie 理解',
+    'yuanliang 原谅',
+    'zhenxi 珍惜',
+    'yongbao 拥抱',
+    'baobao 宝宝',
+    'qinaide 亲爱的',
+    'laopo 老婆',
+    'laogong 老公',
+    'nanpengyou 男朋友',
+    'nvpengyou 女朋友',
+    'pengyou 朋友',
+    'tongxue 同学',
+    'laoshi 老师',
+    'xuesheng 学生',
+    'jiaren 家人',
+    'baba 爸爸',
+    'mama 妈妈',
+    'gege 哥哥',
+    'jiejie 姐姐',
+    'didi 弟弟',
+    'meimei 妹妹',
+    'yeye 爷爷',
+    'nainai 奶奶',
+    'waigong 外公',
+    'waipo 外婆',
+    'shushu 叔叔',
+    'ayi 阿姨',
+    'zhege 这个',
+    'nage 那个',
+    'women 我们',
+    'nimen 你们',
+    'tamen 他们',
+    'ziji 自己',
+    'yiqi 一起',
+    'yizhi 一直',
+    'zhende 真的',
+    'queshi 确实',
+    'dangran 当然',
+    'biru 比如',
+    'zongshi 总是',
+    'jingchang 经常',
+    'youshi 有时',
+    'conglai 从来',
+    'yongyuan 永远',
+    'mingbai 明白',
+    'zhidao 知道',
+    'juede 觉得',
+    'renwei 认为',
+    'xiwang 希望',
+    'dengdai 等待',
+    'xuanze 选择',
+    'jueding 决定',
+    'kaishi 开始',
+    'jieshu 结束',
+    'wancheng 完成',
+    'zhunbei 准备',
+    'jixu 继续',
+    'tingzhi 停止',
+    'bangwo 帮我',
+    'gaosu 告诉',
+    'wenwen 问问',
+    'kankan 看看',
+    'tingshuo 听说',
+    'xiangqi 想起',
+    'wangji 忘记',
+    'jide 记得',
+    'cuoguo 错过',
+    'yudao 遇到',
+    'likai 离开',
+    'huilai 回来',
+    'chufa 出发',
+    'daoda 到达',
+    'renshi 认识',
+    'pengdao 碰到',
+    'zhaodao 找到',
+    'yonggan 勇敢',
+    'wenrou 温柔',
+    'keai 可爱',
+    'piaoliang 漂亮',
+    'shuaiqi 帅气',
+    'congming 聪明',
+    'shanzhe 善良',
+    'chengshi 诚实',
+    'qinfen 勤奋',
+    'lan 懒',
+    'haochi 好吃',
+    'haowan 好玩',
+    'wuliao 无聊',
+    'youqu 有趣',
+    'bangji 棒极',
+    'lai 来',
+    'zoule 走了',
+    'zaijianle 再见了',
+    'wananshuijiao 晚安睡觉',
+    'haohaoxiuxi 好好休息',
+    'zhuyishenti 注意身体',
+    'duoheshui 多喝水',
+    'zaodianxiuxi 早点休息',
+    'bielei 别累',
+    'xiangxinwo 相信我',
+    'wozaozhidao 我早知道',
+    'meishi 没事',
+    'bieku 别哭',
+    'buyaolianxi 不要联系',
+    'wodengni 我等你',
+    'yonghu 用户',
+    'shouji 手机',
+    'diannao 电脑',
+    'dianhua 电话',
+    'xinxi 信息',
+    'xiaoxi 消息',
+    'pengyouquan 朋友圈',
+    'zhaopian 照片',
+    'shipin 视频',
+    'yinyue 音乐',
+    'dianying 电影',
+    'youxi 游戏',
+    'lvxing 旅行',
+    'gongyuan 公园',
+    'xuexiao 学校',
+    'yiyuan 医院',
+    'shangdian 商店',
+    'canting 餐厅',
+    'kafei 咖啡',
+    'cha 茶',
+    'naicha 奶茶',
+    'shuiguo 水果',
+    'mifan 米饭',
+    'miantiao 面条',
+    'zaofan 早饭',
+    'wufan 午饭',
+    'wanfan 晚饭',
+    'yexiao 夜宵',
+    'shengri 生日',
+    'liwu 礼物',
+    'jiehun 结婚',
+    'lianai 恋爱',
+    'fenxiang 分享',
+    'xinren 信任',
+    'ganqing 感情',
+    'gushi 故事',
+    'huiyi 回忆',
+    'yihan 遗憾',
+    'jianglai 将来',
+    'mengxiang 梦想',
+    'mubiao 目标',
+    'shixian 实现',
+    'xingfu 幸福',
+    'kuaile 快乐',
+    'jiankang 健康',
+    'pingan 平安',
+    'shunli 顺利',
+    'wanmei 完美',
+    'youxiu 优秀',
+    'jiachang 家常',
+    'qin'ai 亲爱',
+    'zhaogu 照顾',
+    'pingjing 平静',
+    'anwei 安慰',
+    'guli 鼓励',
+    'zhichi 支持',
+    'limao 礼貌',
+    'zunjing 尊敬',
+    'ganxie 感谢',
+    'baqian 抱歉',
+    '
