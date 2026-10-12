@@ -419,10 +419,18 @@ input, textarea {
 
 .card-editor .row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
   margin-top: 10px;
+}
+
+.row-btns {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
 }
 
 .hint {
@@ -444,6 +452,117 @@ input, textarea {
 
 #btnAddCard:active { background: #06ad56; }
 
+/* ---------- 批量导入面板 ---------- */
+.batch-panel {
+  background: #fff;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .05);
+  animation: msgIn .18s ease-out;
+}
+
+.batch-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.batch-head .title {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.batch-close {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  line-height: 1;
+  color: #9a9a9a;
+  transition: background .15s;
+}
+
+.batch-close:active { background: rgba(0, 0, 0, .06); }
+
+#batchInput {
+  width: 100%;
+  min-height: 120px;
+  max-height: 260px;
+  padding: 10px 11px;
+  border: 1px solid #e2e2e2;
+  border-radius: 8px;
+  background: #fafafa;
+  font-size: 15px;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: border-color .15s, background .15s;
+}
+
+#batchInput:focus {
+  border-color: #07c160;
+  background: #fff;
+}
+
+.batch-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin-top: 10px;
+}
+
+.mode-opt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: #555;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.mode-opt input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #07c160;
+}
+
+.batch-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.batch-foot .row-btns { margin-left: auto; }
+
+.primary-btn {
+  flex: 0 0 auto;
+  height: 38px;
+  padding: 0 20px;
+  border-radius: 8px;
+  background: #07c160;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 500;
+  transition: background .15s;
+}
+
+.primary-btn:active { background: #06ad56; }
+
+/* ---------- 字卡列表 ---------- */
 .card-list {
   display: flex;
   flex-direction: column;
@@ -549,6 +668,7 @@ input, textarea {
 }
 
 .mini-btn {
+  flex: 0 0 auto;
   height: 32px;
   padding: 0 14px;
   border-radius: 8px;
@@ -705,15 +825,52 @@ input, textarea {
     </header>
 
     <div class="page-body">
+
+      <!-- 单张添加 -->
       <div class="card-editor">
         <textarea id="cardInput" placeholder="输入一句话或一小段文字，保存后会成为 TA 的回复…"></textarea>
         <div class="row">
           <span class="hint" id="cardCount">共 0 张字卡</span>
-          <button id="btnAddCard">添加字卡</button>
+          <div class="row-btns">
+            <button class="mini-btn" id="btnToggleBatch">批量导入</button>
+            <button id="btnAddCard">添加字卡</button>
+          </div>
         </div>
       </div>
 
+      <!-- 批量导入面板 -->
+      <div class="batch-panel" id="batchPanel" hidden>
+        <div class="batch-head">
+          <span class="title">批量导入</span>
+          <button class="batch-close" id="btnCloseBatch" aria-label="收起批量导入">×</button>
+        </div>
+
+        <textarea id="batchInput"
+                  placeholder="把字卡内容粘贴到这里，一行一张…&#10;例如：&#10;今天过得怎么样？&#10;早点休息哦&#10;我也想你啦"></textarea>
+
+        <div class="batch-modes">
+          <label class="mode-opt">
+            <input type="radio" name="batchMode" value="line" checked>
+            每行一条
+          </label>
+          <label class="mode-opt">
+            <input type="radio" name="batchMode" value="blank">
+            空行分隔（适合多段长句）
+          </label>
+        </div>
+
+        <div class="batch-foot">
+          <span class="hint" id="batchCount">将导入 0 张</span>
+          <div class="row-btns">
+            <button class="mini-btn" id="btnBatchFile">读取 .txt</button>
+            <button class="primary-btn" id="btnBatchImport">导入字卡</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 字卡列表 -->
       <div class="card-list" id="cardList"></div>
+
     </div>
 
   </div>
@@ -812,7 +969,9 @@ input, textarea {
     { id: 'night',   label: '夜色',  value: 'linear-gradient(160deg,#2b3038 0%,#1d2126 100%)' }
   ];
 
-  var MAX_MESSAGES = 5000; // 本地消息条数上限，超出后丢弃最早的
+  var MAX_MESSAGES = 5000;   // 聊天记录条数上限
+  var MAX_CARDS    = 2000;   // 字卡数量上限
+  var MAX_CARD_LEN = 500;    // 单张字卡最大字数
 
   /* ============================================================
      小工具
@@ -837,13 +996,12 @@ input, textarea {
       document.body.appendChild(el);
     }
     el.textContent = msg;
-    // 强制重排让过渡生效
-    void el.offsetWidth;
+    void el.offsetWidth; // 强制重排让过渡生效
     el.classList.add('show');
     clearTimeout(toastTimer);
     toastTimer = setTimeout(function () {
       el.classList.remove('show');
-    }, 2200);
+    }, 2400);
   }
 
   function colorFromString(str) {
@@ -894,10 +1052,9 @@ input, textarea {
   if (!Array.isArray(state.messages)) state.messages = [];
   if (!Array.isArray(state.cards))    state.cards = [];
 
-  // 内存中的运行态
-  var lastCardId  = null;   // 避免连续抽到同一张
-  var replyTimer  = null;
-  var typingEl    = null;
+  var lastCardId = null;   // 避免连续抽到同一张
+  var replyTimer = null;
+  var typingEl   = null;
 
   /* ============================================================
      持久化
@@ -929,7 +1086,7 @@ input, textarea {
   }
 
   /* ============================================================
-     头像渲染
+     头像 / 名字
      ============================================================ */
   function displayName(role) {
     var s = state.settings;
@@ -1009,9 +1166,7 @@ input, textarea {
     };
     state.messages.push(m);
 
-    // 立刻上屏
-    var box = $('messages');
-    box.appendChild(buildMessageEl(m));
+    $('messages').appendChild(buildMessageEl(m));
 
     if (persist !== false) saveMessages();
     return m;
@@ -1048,7 +1203,7 @@ input, textarea {
   }
 
   /* ============================================================
-     聊天：抽取字卡
+     聊天：抽取字卡 & 回复
      ============================================================ */
   function pickCard() {
     var pool = state.cards;
@@ -1067,7 +1222,6 @@ input, textarea {
       return;
     }
 
-    // 若上一条回复还没发出，重新计时（避免刷屏式回复）
     if (replyTimer) {
       clearTimeout(replyTimer);
       replyTimer = null;
@@ -1113,8 +1267,7 @@ input, textarea {
   }
 
   function updateSendState() {
-    var input = $('input');
-    $('btnSend').disabled = input.value.trim().length === 0;
+    $('btnSend').disabled = $('input').value.trim().length === 0;
   }
 
   /* ============================================================
@@ -1164,8 +1317,7 @@ input, textarea {
             canvas.height = th;
             var ctx = canvas.getContext('2d');
 
-            // 透明图铺白底，避免转 JPEG 后变黑
-            ctx.fillStyle = '#ffffff';
+            ctx.fillStyle = '#ffffff';       // 透明图铺白底
             ctx.fillRect(0, 0, tw, th);
             ctx.drawImage(img, 0, 0, tw, th);
 
@@ -1225,7 +1377,7 @@ input, textarea {
   }
 
   /* ============================================================
-     字卡页面
+     字卡页面 —— 列表渲染
      ============================================================ */
   function renderCards() {
     var list = $('cardList');
@@ -1275,6 +1427,9 @@ input, textarea {
     list.appendChild(frag);
   }
 
+  /* ============================================================
+     字卡页面 —— 单张添加
+     ============================================================ */
   function addCard() {
     var ta = $('cardInput');
     var text = ta.value.trim();
@@ -1284,14 +1439,14 @@ input, textarea {
       return;
     }
 
-    if (state.cards.length >= 2000) {
-      showToast('字卡数量已达上限（2000 张）');
+    if (state.cards.length >= MAX_CARDS) {
+      showToast('字卡数量已达上限（' + MAX_CARDS + ' 张）');
       return;
     }
 
     state.cards.push({
       id: uid(),
-      text: text,
+      text: clampText(text, MAX_CARD_LEN),
       ts: Date.now()
     });
 
@@ -1301,6 +1456,164 @@ input, textarea {
     ta.style.height = '';
     renderCards();
     showToast('已添加');
+  }
+
+  /* ============================================================
+     字卡页面 —— 批量导入
+     ============================================================ */
+
+  /** 当前批量输入的分隔模式 */
+  function currentBatchMode() {
+    var checked = document.querySelector('input[name="batchMode"]:checked');
+    return checked ? checked.value : 'line';
+  }
+
+  /**
+   * 解析批量文本为字卡数组
+   * mode = 'line'  → 每行一条
+   * mode = 'blank' → 空行分隔（条目内部可含换行）
+   */
+  function parseBatch(text, mode) {
+    text = String(text == null ? '' : text).replace(/\r\n?/g, '\n');
+
+    var items = (mode === 'blank')
+      ? text.split(/\n[ \t]*\n/)
+      : text.split('\n');
+
+    var out = [];
+    for (var i = 0; i < items.length; i++) {
+      var s = items[i].trim();
+      if (s) out.push(s);
+    }
+    return out;
+  }
+
+  /** 实时刷新「将导入 N 张」 */
+  function updateBatchCount() {
+    var el = $('batchCount');
+    if (!el) return;
+    var items = parseBatch($('batchInput').value, currentBatchMode());
+    el.textContent = '将导入 ' + items.length + ' 张';
+  }
+
+  function openBatchPanel(open) {
+    var panel = $('batchPanel');
+    panel.hidden = !open;
+    if (open) {
+      updateBatchCount();
+      // 面板展开后滚动到可视区域
+      setTimeout(function () {
+        try {
+          panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        } catch (e) { /* ignore */ }
+      }, 60);
+    }
+  }
+
+  function importBatch() {
+    var text = $('batchInput').value;
+
+    if (!text.trim()) {
+      showToast('请先粘贴要导入的内容');
+      return;
+    }
+
+    var items = parseBatch(text, currentBatchMode());
+
+    if (items.length === 0) {
+      showToast('没有解析到可导入的内容');
+      return;
+    }
+
+    var remaining = MAX_CARDS - state.cards.length;
+    if (remaining <= 0) {
+      showToast('字卡数量已达上限（' + MAX_CARDS + ' 张）');
+      return;
+    }
+
+    // 已有内容做去重表
+    var existing = Object.create(null);
+    for (var k = 0; k < state.cards.length; k++) {
+      existing[state.cards[k].text] = true;
+    }
+
+    var added = 0;
+    var skipped = 0;       // 重复
+    var truncated = false; // 超出上限
+    var now = Date.now();
+
+    for (var i = 0; i < items.length; i++) {
+      if (added >= remaining) { truncated = true; break; }
+
+      var t = clampText(items[i], MAX_CARD_LEN);
+      if (!t) { continue; }
+      if (existing[t]) { skipped++; continue; }
+
+      existing[t] = true;
+      state.cards.push({ id: uid(), text: t, ts: now });
+      added++;
+    }
+
+    if (added === 0) {
+      showToast(skipped ? '这些内容与已有字卡重复了' : '没有可导入的内容');
+      return;
+    }
+
+    saveCards();
+    renderCards();
+
+    $('batchInput').value = '';
+    updateBatchCount();
+
+    var msg = '已导入 ' + added + ' 张字卡';
+    if (skipped)   msg += '，跳过重复 ' + skipped + ' 张';
+    if (truncated) msg += '，已达上限';
+    showToast(msg);
+  }
+
+  /** 读取本地 .txt 追加到批量输入框 */
+  function readTextFile() {
+    var picker = document.createElement('input');
+    picker.type = 'file';
+    picker.accept = '.txt,text/plain';
+    picker.style.position = 'fixed';
+    picker.style.left = '-9999px';
+
+    document.body.appendChild(picker);
+
+    picker.addEventListener('change', function () {
+      var file = picker.files && picker.files[0];
+
+      setTimeout(function () {
+        if (picker.parentNode) picker.parentNode.removeChild(picker);
+      }, 0);
+
+      if (!file) return;
+
+      var reader = new FileReader();
+
+      reader.onload = function () {
+        var txt = String(reader.result || '');
+        var ta = $('batchInput');
+
+        if (ta.value.trim()) {
+          ta.value = ta.value.replace(/\s+$/, '') + '\n' + txt;
+        } else {
+          ta.value = txt;
+        }
+
+        updateBatchCount();
+        showToast('已读取文件内容，确认后点「导入字卡」');
+      };
+
+      reader.onerror = function () {
+        showToast('文件读取失败');
+      };
+
+      reader.readAsText(file, 'utf-8');
+    });
+
+    picker.click();
   }
 
   /* ============================================================
@@ -1318,9 +1631,7 @@ input, textarea {
       btn.style.background = p.value;
 
       var isDefault = (p.id === 'default');
-      var active = isDefault
-        ? (!state.settings.bg)
-        : (state.settings.bg === p.value);
+      var active = isDefault ? (!state.settings.bg) : (state.settings.bg === p.value);
 
       if (active) btn.classList.add('active');
 
@@ -1400,7 +1711,7 @@ input, textarea {
       window.visualViewport.addEventListener('scroll', updateViewport);
     }
 
-    // ---- 首屏渲染 ----
+    /* ---------- 首屏渲染 ---------- */
     applyBackground();
     updateChatHeader();
     renderChat();
@@ -1446,6 +1757,7 @@ input, textarea {
     /* ---------- 打开二级页面 ---------- */
     $('btnOpenCards').addEventListener('click', function () {
       renderCards();
+      updateBatchCount();
       openPage('viewCards');
     });
 
@@ -1460,7 +1772,7 @@ input, textarea {
       });
     });
 
-    /* ---------- 字卡 ---------- */
+    /* ---------- 字卡：单张添加 ---------- */
     $('btnAddCard').addEventListener('click', addCard);
 
     $('cardInput').addEventListener('keydown', function (e) {
@@ -1470,6 +1782,24 @@ input, textarea {
         addCard();
       }
     });
+
+    /* ---------- 字卡：批量导入 ---------- */
+    $('btnToggleBatch').addEventListener('click', function () {
+      openBatchPanel($('batchPanel').hidden);
+    });
+
+    $('btnCloseBatch').addEventListener('click', function () {
+      openBatchPanel(false);
+    });
+
+    $('batchInput').addEventListener('input', updateBatchCount);
+
+    document.querySelectorAll('input[name="batchMode"]').forEach(function (radio) {
+      radio.addEventListener('change', updateBatchCount);
+    });
+
+    $('btnBatchImport').addEventListener('click', importBatch);
+    $('btnBatchFile').addEventListener('click', readTextFile);
 
     /* ---------- 设置：名字 ---------- */
     var nameTimer = null;
@@ -1489,7 +1819,7 @@ input, textarea {
     $('setUserName').addEventListener('input', onNameChange);
     $('setTaName').addEventListener('input', onNameChange);
 
-    /* ---------- 设置：上传 ---------- */
+    /* ---------- 设置：上传头像 / 背景 ---------- */
     document.querySelectorAll('[data-upload]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         uploadFor(btn.dataset.upload);
@@ -1525,6 +1855,11 @@ input, textarea {
       renderChat();
       renderCards();
       renderSettings();
+
+      if (!$('batchPanel').hidden) {
+        $('batchInput').value = '';
+        updateBatchCount();
+      }
 
       showToast('已重置全部数据');
     });
