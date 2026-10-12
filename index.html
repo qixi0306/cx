@@ -57,11 +57,11 @@ button {
 
 input, textarea {
   font-family: inherit;
-  font-size: 16px; /* 防止 iOS 聚焦时自动放大 */
+  font-size: 16px;
 }
 
 /* ============================================================
-   应用容器 —— 跟随可视视口（处理手机输入法弹出）
+   应用容器
    ============================================================ */
 #app {
   position: fixed;
@@ -82,7 +82,6 @@ input, textarea {
   background: var(--wx-bg);
 }
 
-/* 二级页面：从右侧滑入 */
 .page-view {
   transform: translateX(100%);
   visibility: hidden;
@@ -189,7 +188,6 @@ input, textarea {
   padding: 60px 0;
 }
 
-/* ---------- 消息行 ---------- */
 .msg-row {
   display: flex;
   align-items: flex-start;
@@ -208,7 +206,6 @@ input, textarea {
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ---------- 头像 ---------- */
 .avatar {
   flex: 0 0 auto;
   width: 40px;
@@ -235,7 +232,6 @@ input, textarea {
   font-size: 18px;
 }
 
-/* ---------- 气泡 ---------- */
 .bubble {
   position: relative;
   max-width: 72%;
@@ -280,7 +276,6 @@ input, textarea {
   .bubble { max-width: 520px; }
 }
 
-/* ---------- 正在输入 ---------- */
 .typing-bubble {
   display: flex;
   align-items: center;
@@ -431,6 +426,7 @@ input, textarea {
   align-items: center;
   gap: 8px;
   margin-left: auto;
+  flex-wrap: wrap;
 }
 
 .hint {
@@ -452,7 +448,7 @@ input, textarea {
 
 #btnAddCard:active { background: #06ad56; }
 
-/* ---------- 批量导入面板 ---------- */
+/* ---------- 面板通用 ---------- */
 .batch-panel {
   background: #fff;
   border-radius: 10px;
@@ -1043,9 +1039,9 @@ input, textarea {
     { id: 'night',   label: '夜色',  value: 'linear-gradient(160deg,#2b3038 0%,#1d2126 100%)' }
   ];
 
-  var MAX_MESSAGES = 5000;   // 聊天记录条数上限
-  var MAX_CARDS    = 2000;   // 字卡数量上限
-  var MAX_CARD_LEN = 500;    // 单张字卡最大字数
+  var MAX_MESSAGES = 5000;
+  var MAX_CARDS    = 2000;
+  var MAX_CARD_LEN = 500;
 
   /* ============================================================
      小工具
@@ -1070,7 +1066,7 @@ input, textarea {
       document.body.appendChild(el);
     }
     el.textContent = msg;
-    void el.offsetWidth; // 强制重排让过渡生效
+    void el.offsetWidth;
     el.classList.add('show');
     clearTimeout(toastTimer);
     toastTimer = setTimeout(function () {
@@ -1115,16 +1111,12 @@ input, textarea {
   };
 
   /* ============================================================
-     拼音词库（离线，纯本地）
-     ------------------------------------------------------------
-     单字表格式：每行「拼音 + 空格 + 候选字（常用度从高到低）」
-     词组表格式：每行「拼音 + 空格 + 词语」
+     拼音词库（离线）
      ============================================================ */
   var PY_SINGLE_RAW = [
     'a 啊阿',
     'ai 爱哎唉矮挨碍',
     'an 安按案暗岸',
-    'ang 昂',
     'ao 奥凹熬傲',
     'ba 把八吧爸巴拔罢霸',
     'bai 白百摆败拜',
@@ -1133,7 +1125,6 @@ input, textarea {
     'bao 报包保抱宝暴薄爆',
     'bei 被北背杯备悲倍贝辈',
     'ben 本奔笨',
-    'beng 蹦',
     'bi 比必笔毕币闭壁避鼻彼逼',
     'bian 边变便遍编辨辩',
     'biao 表标彪',
@@ -1142,7 +1133,6 @@ input, textarea {
     'bing 并病冰兵饼丙',
     'bo 波播博伯薄拨脖驳',
     'bu 不部步布补捕怖',
-    'ca 擦',
     'cai 才菜猜彩财采裁',
     'can 参残餐惨灿',
     'cang 藏仓苍',
@@ -1150,7 +1140,7 @@ input, textarea {
     'ce 测策侧册',
     'ceng 层曾',
     'cha 查差茶插叉察刹',
-    'chai 拆差柴',
+    'chai 拆柴',
     'chan 产缠禅铲',
     'chang 长常场唱厂尝肠昌畅',
     'chao 超朝吵炒潮',
@@ -1182,7 +1172,6 @@ input, textarea {
     'diao 掉调雕吊',
     'die 跌爹叠蝶',
     'ding 定顶订丁钉鼎',
-    'diu 丢',
     'dong 动东冬懂洞董栋',
     'dou 都斗豆抖逗兜',
     'du 读度独毒肚堵杜渡',
@@ -1202,7 +1191,6 @@ input, textarea {
     'fo 佛',
     'fou 否',
     'fu 服福副父付负复富府妇附扶浮符幅伏肤腐',
-    'ga 嘎',
     'gai 该改盖概钙',
     'gan 干感赶敢甘肝杆尴',
     'gang 刚钢岗港缸',
@@ -1247,11 +1235,10 @@ input, textarea {
     'jie 接街姐解界结节届借介戒皆阶洁',
     'jin 今进金近尽紧仅禁筋巾谨',
     'jing 经京精竟静境景警净镜惊敬睛晶',
-    'jiong 窘',
     'jiu 就九久酒旧救究纠揪',
     'ju 句局举具据巨剧聚拒距俱',
     'juan 卷捐倦',
-    'jue 决绝觉角掘',
+    'jue 决绝觉掘',
     'jun 军均君俊峻',
     'ka 卡咖',
     'kai 开凯慨',
@@ -1310,18 +1297,17 @@ input, textarea {
     'mie 灭',
     'min 民敏',
     'ming 明名命鸣铭',
-    'mo 么摸模末莫墨默磨膜魔',
+    'mo 摸模末莫墨默磨膜魔',
     'mou 某谋',
     'mu 母目木幕牧墓慕亩',
     'na 那哪拿纳娜呐',
     'nai 奶耐乃',
     'nan 难南男楠',
-    'nang 囊',
     'nao 脑闹恼挠',
     'ne 呢',
     'nei 内',
     'neng 能',
-    'ni 你尼泥呢妮拟逆匿腻',
+    'ni 你尼泥妮拟逆匿腻',
     'nian 年念粘碾',
     'niang 娘',
     'niao 鸟尿',
@@ -1333,7 +1319,6 @@ input, textarea {
     'nu 努怒奴',
     'nv 女',
     'nuan 暖',
-    'nue 虐',
     'nuo 诺挪',
     'o 哦噢',
     'ou 欧偶呕殴',
@@ -1346,16 +1331,15 @@ input, textarea {
     'pen 喷盆',
     'peng 朋碰捧棚鹏膨',
     'pi 皮批披疲脾匹劈屁',
-    'pian 片篇偏骗便',
+    'pian 片篇偏骗',
     'piao 票漂飘',
     'pie 撇',
     'pin 品拼贫频聘',
     'ping 平评瓶凭苹屏乒',
     'po 破坡泼颇婆迫',
-    'pou 剖',
     'pu 普铺扑朴谱葡',
     'qi 起其七期气奇齐骑妻旗汽器弃欺棋祈',
-    'qia 恰卡',
+    'qia 恰',
     'qian 前千钱浅签欠牵迁潜歉',
     'qiang 强枪墙抢腔',
     'qiao 桥巧悄敲瞧',
@@ -1472,7 +1456,7 @@ input, textarea {
     'you 有又由友右游优油尤幽邮幼诱忧犹',
     'yu 于与语雨鱼玉遇育预域欲余予宇宙狱羽愚',
     'yuan 元远愿园员原圆院源缘援',
-    'yue 月越约乐跃阅岳',
+    'yue 月越约跃阅岳',
     'yun 运云允晕孕',
     'za 杂咋砸',
     'zai 在再载灾栽仔',
@@ -1500,7 +1484,7 @@ input, textarea {
     'zhuang 装状庄撞壮',
     'zhui 追坠',
     'zhun 准',
-    'zhuo 桌着捉卓',
+    'zhuo 桌捉卓',
     'zi 子自字资紫姿滋仔兹',
     'zong 总宗纵综',
     'zou 走奏邹',
@@ -1671,31 +1655,23 @@ input, textarea {
     'piaoliang 漂亮',
     'shuaiqi 帅气',
     'congming 聪明',
-    'shanzhe 善良',
+    'shanliang 善良',
     'chengshi 诚实',
     'qinfen 勤奋',
-    'lan 懒',
     'haochi 好吃',
     'haowan 好玩',
     'wuliao 无聊',
     'youqu 有趣',
-    'bangji 棒极',
-    'lai 来',
-    'zoule 走了',
-    'zaijianle 再见了',
     'wananshuijiao 晚安睡觉',
     'haohaoxiuxi 好好休息',
     'zhuyishenti 注意身体',
     'duoheshui 多喝水',
     'zaodianxiuxi 早点休息',
-    'bielei 别累',
     'xiangxinwo 相信我',
     'wozaozhidao 我早知道',
     'meishi 没事',
     'bieku 别哭',
-    'buyaolianxi 不要联系',
     'wodengni 我等你',
-    'yonghu 用户',
     'shouji 手机',
     'diannao 电脑',
     'dianhua 电话',
@@ -1714,7 +1690,6 @@ input, textarea {
     'shangdian 商店',
     'canting 餐厅',
     'kafei 咖啡',
-    'cha 茶',
     'naicha 奶茶',
     'shuiguo 水果',
     'mifan 米饭',
@@ -1744,9 +1719,6 @@ input, textarea {
     'shunli 顺利',
     'wanmei 完美',
     'youxiu 优秀',
-    'jiachang 家常',
-    'qin'ai 亲爱',
-    'zhaogu 照顾',
     'pingjing 平静',
     'anwei 安慰',
     'guli 鼓励',
@@ -1755,7 +1727,6 @@ input, textarea {
     'zunjing 尊敬',
     'ganxie 感谢',
     'baqian 抱歉',
-    'yuanliang 原谅',
     'haoyun 好运',
     'shunjian 瞬间',
     'yongjiu 永久',
@@ -1766,7 +1737,6 @@ input, textarea {
     'xintiao 心跳',
     'weixiao 微笑',
     'yanlei 眼泪',
-    'huaixiao 怀笑',
     'qidai 期待',
     'xingfen 兴奋',
     'chenmo 沉默',
@@ -1809,11 +1779,7 @@ input, textarea {
   var PY_SINGLE = parseDictLines(PY_SINGLE_RAW);
   var PY_WORDS  = parseDictLines(PY_WORDS_RAW);
 
-  /**
-   * 转换一段连续拼音（无空格）为中文
-   * 优先匹配长词组，其次匹配单音节
-   * 若有任何字母无法解析，则整段原样返回
-   */
+  /** 转换一段连续拼音（无空格）为中文 */
   function convertSegment(seg) {
     var n = seg.length;
     var out = [];
@@ -1822,7 +1788,7 @@ input, textarea {
     while (i < n) {
       var done = false;
 
-      // 1) 优先匹配词组（长的先试）
+      // 优先匹配词组（长的先试）
       var maxW = Math.min(18, n - i);
       for (var L = maxW; L >= 2; L--) {
         var w = seg.substr(i, L);
@@ -1835,7 +1801,7 @@ input, textarea {
       }
       if (done) continue;
 
-      // 2) 再匹配单音节
+      // 再匹配单音节
       var maxS = Math.min(6, n - i);
       for (var L2 = maxS; L2 >= 1; L2--) {
         var s2 = seg.substr(i, L2);
@@ -1848,17 +1814,14 @@ input, textarea {
       }
       if (done) continue;
 
-      // 3) 有无法解析的字母 —— 整段放弃转换
+      // 无法解析 —— 整段原样返回
       return seg;
     }
 
     return out.join('');
   }
 
-  /**
-   * 把整串拼音输入转成中文
-   * 支持空格分隔音节，也支持连写
-   */
+  /** 整串拼音转中文（支持空格分词，也支持连写） */
   function convertPinyin(raw) {
     if (!raw) return '';
 
@@ -1895,7 +1858,7 @@ input, textarea {
   if (!Array.isArray(state.messages)) state.messages = [];
   if (!Array.isArray(state.cards))    state.cards = [];
 
-  var lastCardId = null;   // 避免连续抽到同一张
+  var lastCardId = null;
   var replyTimer = null;
   var typingEl   = null;
 
@@ -1913,7 +1876,7 @@ input, textarea {
   function saveSettings() { store.write(KEYS.settings, state.settings); }
 
   /* ============================================================
-     视口高度（处理手机输入法弹出）
+     视口高度
      ============================================================ */
   function updateViewport() {
     var root = document.documentElement;
@@ -1971,7 +1934,7 @@ input, textarea {
 
     var bubble = document.createElement('div');
     bubble.className = 'bubble';
-    bubble.textContent = m.text;   // textContent 天然防注入
+    bubble.textContent = m.text;
 
     row.appendChild(av);
     row.appendChild(bubble);
@@ -2008,9 +1971,7 @@ input, textarea {
       ts: Date.now()
     };
     state.messages.push(m);
-
     $('messages').appendChild(buildMessageEl(m));
-
     if (persist !== false) saveMessages();
     return m;
   }
@@ -2077,7 +2038,6 @@ input, textarea {
     replyTimer = setTimeout(function () {
       replyTimer = null;
       hideTyping();
-
       var card = pickCard();
       addMessage('ta', card.text);
       scrollToBottom(true);
@@ -2098,7 +2058,6 @@ input, textarea {
 
     addMessage('user', text);
     scrollToBottom(true);
-
     respondToUser();
   }
 
@@ -2139,7 +2098,7 @@ input, textarea {
   }
 
   /* ============================================================
-     图片处理：压缩为 dataURL
+     图片处理
      ============================================================ */
   function fileToDataURL(file, maxSize) {
     return new Promise(function (resolve, reject) {
@@ -2159,8 +2118,7 @@ input, textarea {
             canvas.width = tw;
             canvas.height = th;
             var ctx = canvas.getContext('2d');
-
-            ctx.fillStyle = '#ffffff';       // 透明图铺白底
+            ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, tw, th);
             ctx.drawImage(img, 0, 0, tw, th);
 
@@ -2227,7 +2185,6 @@ input, textarea {
     var count = $('cardCount');
 
     count.textContent = '共 ' + state.cards.length + ' 张字卡';
-
     list.innerHTML = '';
 
     if (state.cards.length === 0) {
@@ -2240,7 +2197,6 @@ input, textarea {
 
     var frag = document.createDocumentFragment();
 
-    // 最新的排在最前面
     for (var i = state.cards.length - 1; i >= 0; i--) {
       (function (card) {
         var item = document.createElement('div');
@@ -2294,7 +2250,6 @@ input, textarea {
     });
 
     saveCards();
-
     ta.value = '';
     ta.style.height = '';
     renderCards();
@@ -2304,18 +2259,11 @@ input, textarea {
   /* ============================================================
      字卡页面 —— 批量导入
      ============================================================ */
-
-  /** 当前批量输入的分隔模式 */
   function currentBatchMode() {
     var checked = document.querySelector('input[name="batchMode"]:checked');
     return checked ? checked.value : 'line';
   }
 
-  /**
-   * 解析批量文本为字卡数组
-   * mode = 'line'  → 每行一条
-   * mode = 'blank' → 空行分隔（条目内部可含换行）
-   */
   function parseBatch(text, mode) {
     text = String(text == null ? '' : text).replace(/\r\n?/g, '\n');
 
@@ -2331,7 +2279,6 @@ input, textarea {
     return out;
   }
 
-  /** 实时刷新「将导入 N 张」 */
   function updateBatchCount() {
     var el = $('batchCount');
     if (!el) return;
@@ -2374,22 +2321,21 @@ input, textarea {
       return;
     }
 
-    // 已有内容做去重表
     var existing = Object.create(null);
     for (var k = 0; k < state.cards.length; k++) {
       existing[state.cards[k].text] = true;
     }
 
     var added = 0;
-    var skipped = 0;       // 重复
-    var truncated = false; // 超出上限
+    var skipped = 0;
+    var truncated = false;
     var now = Date.now();
 
     for (var i = 0; i < items.length; i++) {
       if (added >= remaining) { truncated = true; break; }
 
       var t = clampText(items[i], MAX_CARD_LEN);
-      if (!t) { continue; }
+      if (!t) continue;
       if (existing[t]) { skipped++; continue; }
 
       existing[t] = true;
@@ -2414,7 +2360,6 @@ input, textarea {
     showToast(msg);
   }
 
-  /** 读取本地 .txt 追加到批量输入框 */
   function readTextFile() {
     var picker = document.createElement('input');
     picker.type = 'file';
@@ -2462,7 +2407,6 @@ input, textarea {
   /* ============================================================
      字卡页面 —— 拼音生成
      ============================================================ */
-
   function openPinyinPanel(open) {
     var panel = $('pinyinPanel');
     panel.hidden = !open;
@@ -2477,7 +2421,6 @@ input, textarea {
     }
   }
 
-  /** 实时把拼音输入转换为中文，写入结果框 */
   function doPinyinConvert() {
     var src = $('pinyinInput').value;
     var out = convertPinyin(src);
@@ -2494,7 +2437,6 @@ input, textarea {
     }
   }
 
-  /** 把转换结果保存为字卡 */
   function savePinyinCard() {
     var text = $('pinyinResult').value.trim();
 
@@ -2559,7 +2501,6 @@ input, textarea {
       wrap.appendChild(btn);
     });
 
-    // 自定义背景
     var custom = document.createElement('button');
     custom.type = 'button';
     custom.className = 'bg-swatch bg-swatch-custom';
@@ -2655,7 +2596,6 @@ input, textarea {
       setTimeout(updateViewport, 120);
     });
 
-    // 桌面端：Enter 发送，Shift+Enter 换行；移动端保持换行
     input.addEventListener('keydown', function (e) {
       if (e.key !== 'Enter') return;
       var isTouch = ('ontouchstart' in window) ||
@@ -2690,7 +2630,6 @@ input, textarea {
     $('btnAddCard').addEventListener('click', addCard);
 
     $('cardInput').addEventListener('keydown', function (e) {
-      // Ctrl / Cmd + Enter 快速添加
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
         addCard();
@@ -2729,7 +2668,6 @@ input, textarea {
     $('btnPinyinSave').addEventListener('click', savePinyinCard);
     $('btnPinyinClear').addEventListener('click', clearPinyinPanel);
 
-    // Ctrl / Cmd + Enter 直接保存
     $('pinyinInput').addEventListener('keydown', function (e) {
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
@@ -2806,4 +2744,21 @@ input, textarea {
     document.addEventListener('visibilitychange', function () {
       if (!document.hidden) {
         updateViewport();
-        setTimeout(function () { scrollToBottom(
+        setTimeout(function () { scrollToBottom(false); }, 120);
+      }
+    });
+  }
+
+  /* ============================================================
+     启动
+     ============================================================ */
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+})();
+</script>
+</body>
+</html>
