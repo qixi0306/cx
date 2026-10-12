@@ -318,6 +318,30 @@ input, textarea {
   gap: 8px;
 }
 
+/* TA 写话按钮 */
+.ta-write-btn {
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  border-radius: 6px;
+  background: #fff;
+  border: 1px solid #dcdcdc;
+  color: #07c160;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .15s, border-color .15s;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.ta-write-btn:active {
+  background: #eef9f2;
+  border-color: #07c160;
+}
+
 #input {
   flex: 1 1 auto;
   min-width: 0;
@@ -566,7 +590,7 @@ input, textarea {
 
 .primary-btn:active { background: #06ad56; }
 
-/* ---------- 拼音生成面板 ---------- */
+/* ---------- 拼音面板 ---------- */
 .py-arrow {
   text-align: center;
   color: #c4c4c4;
@@ -583,7 +607,8 @@ input, textarea {
   margin: 8px 0 6px;
 }
 
-#pinyinResult {
+#pinyinResult,
+#taWriteResult {
   width: 100%;
   min-height: 76px;
   max-height: 200px;
@@ -601,7 +626,8 @@ input, textarea {
   transition: border-color .15s, background .15s;
 }
 
-#pinyinResult:focus {
+#pinyinResult:focus,
+#taWriteResult:focus {
   border-color: #07c160;
   background: #fff;
 }
@@ -650,6 +676,86 @@ input, textarea {
   color: #b3b3b3;
   font-size: 14px;
   padding: 40px 0;
+}
+
+/* ============================================================
+   TA 写话浮层
+   ============================================================ */
+.ta-write-mask {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, .45);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: fadeIn .18s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.ta-write-panel {
+  width: 100%;
+  max-width: 520px;
+  max-height: 100%;
+  background: #f7f7f7;
+  border-radius: 14px;
+  padding: 14px 14px calc(14px + var(--sab));
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .22);
+  animation: popIn .24s cubic-bezier(.32, .72, .28, 1);
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: scale(.95) translateY(10px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.ta-write-panel .title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.ta-write-panel .title-row .title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.ta-write-panel .subtitle {
+  font-size: 12px;
+  color: var(--wx-sub);
+  margin-bottom: 12px;
+}
+
+#taWriteInput {
+  width: 100%;
+  min-height: 62px;
+  max-height: 120px;
+  padding: 10px 11px;
+  border: 1px solid #e2e2e2;
+  border-radius: 8px;
+  background: #fafafa;
+  font-size: 15px;
+  line-height: 1.5;
+  letter-spacing: .5px;
+  resize: vertical;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: border-color .15s, background .15s;
+}
+
+#taWriteInput:focus {
+  border-color: #07c160;
+  background: #fff;
 }
 
 /* ============================================================
@@ -846,6 +952,7 @@ input, textarea {
 
     <footer class="input-bar">
       <div class="input-bar-inner">
+        <button class="ta-write-btn" id="btnOpenTaWrite" aria-label="TA 用拼音说话">TA</button>
         <textarea id="input" rows="1" placeholder="发消息…"
                   enterkeyhint="send" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
         <button id="btnSend" disabled>发送</button>
@@ -876,34 +983,38 @@ input, textarea {
         <div class="row">
           <span class="hint" id="cardCount">共 0 张字卡</span>
           <div class="row-btns">
-            <button class="mini-btn" id="btnTogglePinyin">拼音生成</button>
+            <button class="mini-btn" id="btnTogglePinyin">TA 写卡</button>
             <button class="mini-btn" id="btnToggleBatch">批量导入</button>
             <button id="btnAddCard">添加字卡</button>
           </div>
         </div>
       </div>
 
-      <!-- 拼音生成面板 -->
+      <!-- TA 拼音写卡面板 -->
       <div class="batch-panel" id="pinyinPanel" hidden>
         <div class="batch-head">
-          <span class="title">拼音生成字卡</span>
-          <button class="batch-close" id="btnClosePinyin" aria-label="收起拼音生成">×</button>
+          <span class="title">TA 写卡（拼音）</span>
+          <button class="batch-close" id="btnClosePinyin" aria-label="收起">×</button>
+        </div>
+
+        <div class="py-preview-label" style="margin-top:0;">
+          TA 在拼音输入它想写下的字卡
         </div>
 
         <textarea id="pinyinInput" spellcheck="false" autocapitalize="off" autocorrect="off"
-                  placeholder="输入拼音，例如：&#10;ni hao&#10;woxiangni&#10;jintian xinqing henhao"></textarea>
+                  placeholder="TA 输入拼音，例如：&#10;ni hao&#10;woxiangni&#10;jintian xinqing henhao"></textarea>
 
         <div class="py-arrow">↓</div>
 
-        <div class="py-preview-label">转换结果（可直接修改）</div>
+        <div class="py-preview-label">TA 写下的字卡（可直接修改）</div>
         <textarea id="pinyinResult" spellcheck="false"
                   placeholder="转换出的中文会显示在这里…"></textarea>
 
         <div class="batch-foot">
-          <span class="hint" id="pinyinHint">输入拼音试试</span>
+          <span class="hint" id="pinyinHint">TA 正在等待输入…</span>
           <div class="row-btns">
             <button class="mini-btn" id="btnPinyinClear">清空</button>
-            <button class="primary-btn" id="btnPinyinSave">保存为字卡</button>
+            <button class="primary-btn" id="btnPinyinSave">存为 TA 的字卡</button>
           </div>
         </div>
       </div>
@@ -1005,6 +1116,34 @@ input, textarea {
 
     </div>
 
+  </div>
+
+  <!-- ============ TA 写话浮层 ============ -->
+  <div class="ta-write-mask" id="taWriteMask" hidden>
+    <div class="ta-write-panel">
+      <div class="title-row">
+        <span class="title">TA 想说的话</span>
+        <button class="batch-close" id="btnCloseTaWrite" aria-label="关闭">×</button>
+      </div>
+      <div class="subtitle">TA 用拼音写下它想发的内容，系统会转成中文直接发出</div>
+
+      <textarea id="taWriteInput" spellcheck="false" autocapitalize="off" autocorrect="off"
+                placeholder="TA 输入拼音，例如：&#10;ni hao&#10;woxiangni&#10;wanan"></textarea>
+
+      <div class="py-arrow">↓</div>
+
+      <div class="py-preview-label">TA 要说的话（可直接修改）</div>
+      <textarea id="taWriteResult" spellcheck="false"
+                placeholder="转换出的中文会显示在这里…"></textarea>
+
+      <div class="batch-foot">
+        <span class="hint" id="taWriteHint">TA 正在等待输入…</span>
+        <div class="row-btns">
+          <button class="mini-btn" id="btnTaWriteClear">清空</button>
+          <button class="primary-btn" id="btnTaWriteSend">让 TA 说</button>
+        </div>
+      </div>
+    </div>
   </div>
 
 </div>
@@ -1114,653 +1253,141 @@ input, textarea {
      拼音词库（离线）
      ============================================================ */
   var PY_SINGLE_RAW = [
-    'a 啊阿',
-    'ai 爱哎唉矮挨碍',
-    'an 安按案暗岸',
-    'ao 奥凹熬傲',
-    'ba 把八吧爸巴拔罢霸',
-    'bai 白百摆败拜',
-    'ban 半办班般板搬伴版',
-    'bang 帮棒绑榜邦',
-    'bao 报包保抱宝暴薄爆',
-    'bei 被北背杯备悲倍贝辈',
-    'ben 本奔笨',
-    'bi 比必笔毕币闭壁避鼻彼逼',
-    'bian 边变便遍编辨辩',
-    'biao 表标彪',
-    'bie 别',
-    'bin 宾滨',
-    'bing 并病冰兵饼丙',
-    'bo 波播博伯薄拨脖驳',
-    'bu 不部步布补捕怖',
-    'cai 才菜猜彩财采裁',
-    'can 参残餐惨灿',
-    'cang 藏仓苍',
-    'cao 草操曹槽',
-    'ce 测策侧册',
-    'ceng 层曾',
-    'cha 查差茶插叉察刹',
-    'chai 拆柴',
-    'chan 产缠禅铲',
-    'chang 长常场唱厂尝肠昌畅',
-    'chao 超朝吵炒潮',
-    'che 车彻扯撤',
-    'chen 沉陈晨尘臣衬',
-    'cheng 成城程称承乘诚盛呈惩',
-    'chi 吃持迟尺池赤斥翅',
-    'chong 冲充重虫崇',
-    'chou 抽愁丑臭仇酬',
-    'chu 出除初处厨触储楚础',
-    'chuan 传穿船川喘',
-    'chuang 创床窗闯',
-    'chui 吹垂锤',
-    'chun 春纯唇蠢',
-    'ci 次此词刺磁辞慈',
-    'cong 从聪丛匆',
-    'cu 粗促醋',
-    'cun 存村寸',
-    'cuo 错措挫',
-    'da 大达打答搭',
-    'dai 带代待戴袋贷呆逮',
-    'dan 但单担淡蛋弹丹耽',
-    'dang 当党挡档',
-    'dao 到道倒岛刀导盗稻',
-    'de 的得德',
-    'deng 等登灯邓凳',
-    'di 地第低底弟帝敌递滴迪抵',
-    'dian 点电店典殿垫掂',
-    'diao 掉调雕吊',
-    'die 跌爹叠蝶',
-    'ding 定顶订丁钉鼎',
-    'dong 动东冬懂洞董栋',
-    'dou 都斗豆抖逗兜',
-    'du 读度独毒肚堵杜渡',
-    'duan 短段断端锻',
-    'dui 对队堆兑',
-    'dun 顿盾吨蹲炖',
-    'duo 多夺朵躲惰',
-    'e 额恶饿鹅俄娥',
-    'en 恩',
-    'er 而二儿耳尔饵',
-    'fa 发法罚乏伐',
-    'fan 反饭翻凡烦范犯繁返',
-    'fang 方放房防访仿纺',
-    'fei 非飞费肥废肺沸匪',
-    'fen 分份粉奋愤纷芬坟',
-    'feng 风封丰峰疯逢缝蜂',
-    'fo 佛',
-    'fou 否',
+    'a 啊阿','ai 爱哎唉矮挨碍','an 安按案暗岸','ao 奥凹熬傲',
+    'ba 把八吧爸巴拔罢霸','bai 白百摆败拜','ban 半办班般板搬伴版','bang 帮棒绑榜邦','bao 报包保抱宝暴薄爆',
+    'bei 被北背杯备悲倍贝辈','ben 本奔笨','bi 比必笔毕币闭壁避鼻彼逼','bian 边变便遍编辨辩','biao 表标彪',
+    'bie 别','bin 宾滨','bing 并病冰兵饼丙','bo 波播博伯薄拨脖驳','bu 不部步布补捕怖',
+    'cai 才菜猜彩财采裁','can 参残餐惨灿','cang 藏仓苍','cao 草操曹槽','ce 测策侧册','ceng 层曾',
+    'cha 查差茶插叉察刹','chai 拆柴','chan 产缠禅铲','chang 长常场唱厂尝肠昌畅','chao 超朝吵炒潮',
+    'che 车彻扯撤','chen 沉陈晨尘臣衬','cheng 成城程称承乘诚盛呈惩','chi 吃持迟尺池赤斥翅','chong 冲充重虫崇',
+    'chou 抽愁丑臭仇酬','chu 出除初处厨触储楚础','chuan 传穿船川喘','chuang 创床窗闯','chui 吹垂锤',
+    'chun 春纯唇蠢','ci 次此词刺磁辞慈','cong 从聪丛匆','cu 粗促醋','cun 存村寸','cuo 错措挫',
+    'da 大达打答搭','dai 带代待戴袋贷呆逮','dan 但单担淡蛋弹丹耽','dang 当党挡档','dao 到道倒岛刀导盗稻',
+    'de 的得德','deng 等登灯邓凳','di 地第低底弟帝敌递滴迪抵','dian 点电店典殿垫掂','diao 掉调雕吊',
+    'die 跌爹叠蝶','ding 定顶订丁钉鼎','dong 动东冬懂洞董栋','dou 都斗豆抖逗兜','du 读度独毒肚堵杜渡',
+    'duan 短段断端锻','dui 对队堆兑','dun 顿盾吨蹲炖','duo 多夺朵躲惰',
+    'e 额恶饿鹅俄娥','en 恩','er 而二儿耳尔饵',
+    'fa 发法罚乏伐','fan 反饭翻凡烦范犯繁返','fang 方放房防访仿纺','fei 非飞费肥废肺沸匪',
+    'fen 分份粉奋愤纷芬坟','feng 风封丰峰疯逢缝蜂','fo 佛','fou 否',
     'fu 服福副父付负复富府妇附扶浮符幅伏肤腐',
-    'gai 该改盖概钙',
-    'gan 干感赶敢甘肝杆尴',
-    'gang 刚钢岗港缸',
-    'gao 高告搞稿糕膏',
-    'ge 个各歌哥格割阁隔葛',
-    'gei 给',
-    'gen 跟根',
-    'geng 更耕',
-    'gong 工公共功供攻宫弓恭巩',
-    'gou 够狗构沟钩购勾',
-    'gu 古故顾骨鼓谷股雇估孤姑',
-    'gua 挂瓜刮寡',
-    'guai 怪乖拐',
-    'guan 关观管官馆惯冠灌',
-    'guang 光广逛',
-    'gui 贵归规鬼柜跪桂轨',
-    'gun 滚棍',
-    'guo 过国果锅裹',
-    'ha 哈',
-    'hai 还海孩害嗨',
-    'han 汉喊含寒韩汗函',
-    'hang 行航',
-    'hao 好号毫豪浩耗',
-    'he 和喝合河何盒贺呵荷核',
-    'hen 很恨狠痕',
-    'heng 横哼恒',
-    'hong 红洪宏轰烘虹',
-    'hou 后候厚猴吼喉',
-    'hu 呼胡湖户互护乎壶虎忽糊',
-    'hua 话花化画华划滑',
-    'huai 坏怀淮',
-    'huan 还换环欢缓患幻唤',
-    'huang 黄皇慌荒谎煌',
-    'hui 会回灰汇惠挥辉毁悔慧',
-    'hun 婚混魂昏浑',
-    'huo 活火或货获祸伙',
-    'ji 机几记及急即级极己计济继基击鸡积技季寄纪迹吉剂',
-    'jia 家加价假架甲佳夹嘉嫁',
-    'jian 见间件建简减健坚检剑渐肩艰荐',
-    'jiang 讲将江降奖强酱',
-    'jiao 叫教交脚角较觉焦骄郊搅',
-    'jie 接街姐解界结节届借介戒皆阶洁',
-    'jin 今进金近尽紧仅禁筋巾谨',
-    'jing 经京精竟静境景警净镜惊敬睛晶',
-    'jiu 就九久酒旧救究纠揪',
-    'ju 句局举具据巨剧聚拒距俱',
-    'juan 卷捐倦',
-    'jue 决绝觉掘',
-    'jun 军均君俊峻',
-    'ka 卡咖',
-    'kai 开凯慨',
-    'kan 看刊砍堪',
-    'kang 康抗扛',
-    'kao 考靠烤拷',
-    'ke 可科克课刻客颗渴壳',
-    'ken 肯啃恳',
-    'keng 坑',
-    'kong 空孔控恐',
-    'kou 口扣寇',
-    'ku 苦哭库裤酷',
-    'kua 跨夸垮',
-    'kuai 快块筷',
-    'kuan 宽款',
-    'kuang 况狂矿框旷',
-    'kui 亏愧溃',
-    'kun 困昆捆',
-    'kuo 阔扩',
-    'la 拉啦辣落蜡',
-    'lai 来赖',
-    'lan 蓝兰懒烂览拦栏',
-    'lang 浪郎狼朗廊',
-    'lao 老劳牢捞姥',
-    'le 了乐勒',
-    'lei 类累雷泪蕾',
-    'leng 冷愣',
-    'li 里理力立李离利历丽例粒礼厉励梨璃',
-    'lian 连联脸练恋莲怜链廉',
-    'liang 两量亮凉良粮梁辆',
-    'liao 了料聊疗辽',
-    'lie 列烈裂劣猎',
-    'lin 林临邻淋琳',
-    'ling 另令领灵零铃岭',
-    'liu 六流留刘柳溜',
-    'long 龙隆笼聋',
-    'lou 楼漏露搂',
-    'lu 路录陆炉露鲁鹿卢',
-    'lv 绿率律旅虑滤',
-    'luan 乱卵',
-    'lue 略',
-    'lun 论轮伦仑',
-    'luo 落罗络骆萝裸',
-    'ma 吗妈马嘛麻骂码蚂',
-    'mai 买卖麦迈埋',
-    'man 满慢曼漫蛮瞒',
-    'mang 忙盲茫芒莽',
-    'mao 毛猫冒帽贸矛茂',
-    'me 么',
-    'mei 没美每妹眉梅煤霉玫',
-    'men 们门闷',
-    'meng 梦猛蒙盟萌',
-    'mi 米密迷秘蜜谜眯',
-    'mian 面免棉眠绵勉',
-    'miao 秒苗庙妙描瞄',
-    'mie 灭',
-    'min 民敏',
-    'ming 明名命鸣铭',
-    'mo 摸模末莫墨默磨膜魔',
-    'mou 某谋',
-    'mu 母目木幕牧墓慕亩',
-    'na 那哪拿纳娜呐',
-    'nai 奶耐乃',
-    'nan 难南男楠',
-    'nao 脑闹恼挠',
-    'ne 呢',
-    'nei 内',
-    'neng 能',
-    'ni 你尼泥妮拟逆匿腻',
-    'nian 年念粘碾',
-    'niang 娘',
-    'niao 鸟尿',
-    'nie 捏',
-    'nin 您',
-    'ning 宁凝',
-    'niu 牛扭纽妞',
-    'nong 农弄浓',
-    'nu 努怒奴',
-    'nv 女',
-    'nuan 暖',
-    'nuo 诺挪',
-    'o 哦噢',
-    'ou 欧偶呕殴',
-    'pa 怕爬趴帕',
-    'pai 拍排派牌徘',
-    'pan 判盘盼攀叛',
-    'pang 旁胖庞',
-    'pao 跑炮泡抛袍',
-    'pei 陪配培赔佩',
-    'pen 喷盆',
-    'peng 朋碰捧棚鹏膨',
-    'pi 皮批披疲脾匹劈屁',
-    'pian 片篇偏骗',
-    'piao 票漂飘',
-    'pie 撇',
-    'pin 品拼贫频聘',
-    'ping 平评瓶凭苹屏乒',
-    'po 破坡泼颇婆迫',
-    'pu 普铺扑朴谱葡',
-    'qi 起其七期气奇齐骑妻旗汽器弃欺棋祈',
-    'qia 恰',
-    'qian 前千钱浅签欠牵迁潜歉',
-    'qiang 强枪墙抢腔',
-    'qiao 桥巧悄敲瞧',
-    'qie 切且窃茄',
-    'qin 亲琴勤侵秦寝芹',
-    'qing 请情青清轻晴庆倾顷',
-    'qiong 穷',
-    'qiu 求球秋丘邱',
-    'qu 去取区曲趣屈驱娶渠',
-    'quan 全权圈拳劝券泉',
-    'que 却确缺雀',
-    'qun 群裙',
-    'ran 然染燃',
-    'rang 让嚷',
-    'rao 绕扰',
-    're 热惹',
-    'ren 人认任仁忍韧刃',
-    'reng 仍扔',
-    'ri 日',
-    'rong 容荣融绒溶',
-    'rou 肉柔揉',
-    'ru 如入乳辱儒',
-    'ruan 软',
-    'rui 锐瑞',
-    'run 润',
-    'ruo 若弱',
-    'sa 撒洒',
-    'sai 赛塞腮',
-    'san 三散伞叁',
-    'sang 丧桑嗓',
-    'sao 扫骚嫂',
-    'se 色涩',
-    'sen 森',
-    'seng 僧',
-    'sha 杀沙啥傻纱刹',
-    'shai 晒筛',
-    'shan 山善闪衫扇删珊煽',
-    'shang 上商伤尚赏晌',
-    'shao 少烧绍稍勺哨',
-    'she 社设射舍蛇摄涉奢',
-    'shei 谁',
-    'shen 身深神什甚审申伸慎肾',
-    'sheng 生声胜升圣省剩绳盛',
-    'shi 是时事实十事市使世式试师诗失识史始士示视室食施湿石拾适释',
-    'shou 手受收首守瘦寿授售兽',
-    'shu 书数树输术舒熟属鼠叔束述蔬',
-    'shua 刷耍',
-    'shuai 帅摔甩',
-    'shuan 栓',
-    'shuang 双爽霜',
-    'shui 水谁睡税',
-    'shun 顺瞬',
-    'shuo 说硕',
-    'si 四死思司丝私似寺撕斯',
-    'song 送松宋颂诵',
-    'sou 搜艘',
-    'su 素速苏诉宿俗塑肃',
-    'suan 算酸蒜',
-    'sui 岁随虽碎遂穗',
-    'sun 孙损笋',
-    'suo 所缩索锁',
-    'ta 他她它塔踏塌',
-    'tai 太台抬态胎泰',
-    'tan 谈弹探坦叹摊贪滩',
-    'tang 堂糖躺汤唐烫',
-    'tao 套讨逃桃涛陶淘',
-    'te 特',
-    'teng 疼腾藤',
-    'ti 体提题踢替梯剃',
-    'tian 天田甜填添舔',
-    'tiao 条跳调挑',
-    'tie 铁贴帖',
-    'ting 听停厅挺庭亭',
-    'tong 同通痛童统桶筒铜',
-    'tou 头投偷透',
-    'tu 图土突途徒兔吐涂屠',
-    'tuan 团',
-    'tui 推退腿',
-    'tun 吞屯',
-    'tuo 托脱拖妥拓驼',
-    'wa 哇挖娃瓦袜',
-    'wai 外歪',
-    'wan 完万晚玩弯丸碗挽腕',
-    'wang 王往忘望网亡旺',
-    'wei 为位未味委围威危微维唯尾胃谓伟卫违',
-    'wen 问文闻温稳吻纹蚊',
-    'weng 翁',
-    'wo 我握窝卧沃',
+    'gai 该改盖概钙','gan 干感赶敢甘肝杆尴','gang 刚钢岗港缸','gao 高告搞稿糕膏','ge 个各歌哥格割阁隔葛',
+    'gei 给','gen 跟根','geng 更耕','gong 工公共功供攻宫弓恭巩','gou 够狗构沟钩购勾',
+    'gu 古故顾骨鼓谷股雇估孤姑','gua 挂瓜刮寡','guai 怪乖拐','guan 关观管官馆惯冠灌','guang 光广逛',
+    'gui 贵归规鬼柜跪桂轨','gun 滚棍','guo 过国果锅裹',
+    'ha 哈','hai 还海孩害嗨','han 汉喊含寒韩汗函','hang 行航','hao 好号毫豪浩耗',
+    'he 和喝合河何盒贺呵荷核','hen 很恨狠痕','heng 横哼恒','hong 红洪宏轰烘虹','hou 后候厚猴吼喉',
+    'hu 呼胡湖户互护乎壶虎忽糊','hua 话花化画华划滑','huai 坏怀淮','huan 还换环欢缓患幻唤','huang 黄皇慌荒谎煌',
+    'hui 会回灰汇惠挥辉毁悔慧','hun 婚混魂昏浑','huo 活火或货获祸伙',
+    'ji 机几记及急即级极己计济继基击鸡积技季寄纪迹吉剂','jia 家加价假架甲佳夹嘉嫁',
+    'jian 见间件建简减健坚检剑渐肩艰荐','jiang 讲将江降奖强酱','jiao 叫教交脚角较觉焦骄郊搅',
+    'jie 接街姐解界结节届借介戒皆阶洁','jin 今进金近尽紧仅禁筋巾谨','jing 经京精竟静境景警净镜惊敬睛晶',
+    'jiu 就九久酒旧救究纠揪','ju 句局举具据巨剧聚拒距俱','juan 卷捐倦','jue 决绝觉掘','jun 军均君俊峻',
+    'ka 卡咖','kai 开凯慨','kan 看刊砍堪','kang 康抗扛','kao 考靠烤拷','ke 可科克课刻客颗渴壳',
+    'ken 肯啃恳','keng 坑','kong 空孔控恐','kou 口扣寇','ku 苦哭库裤酷','kua 跨夸垮','kuai 快块筷',
+    'kuan 宽款','kuang 况狂矿框旷','kui 亏愧溃','kun 困昆捆','kuo 阔扩',
+    'la 拉啦辣落蜡','lai 来赖','lan 蓝兰懒烂览拦栏','lang 浪郎狼朗廊','lao 老劳牢捞姥','le 了乐勒',
+    'lei 类累雷泪蕾','leng 冷愣','li 里理力立李离利历丽例粒礼厉励梨璃','lian 连联脸练恋莲怜链廉',
+    'liang 两量亮凉良粮梁辆','liao 了料聊疗辽','lie 列烈裂劣猎','lin 林临邻淋琳','ling 另令领灵零铃岭',
+    'liu 六流留刘柳溜','long 龙隆笼聋','lou 楼漏露搂','lu 路录陆炉露鲁鹿卢','lv 绿率律旅虑滤',
+    'luan 乱卵','lue 略','lun 论轮伦仑','luo 落罗络骆萝裸',
+    'ma 吗妈马嘛麻骂码蚂','mai 买卖麦迈埋','man 满慢曼漫蛮瞒','mang 忙盲茫芒莽','mao 毛猫冒帽贸矛茂',
+    'me 么','mei 没美每妹眉梅煤霉玫','men 们门闷','meng 梦猛蒙盟萌','mi 米密迷秘蜜谜眯',
+    'mian 面免棉眠绵勉','miao 秒苗庙妙描瞄','mie 灭','min 民敏','ming 明名命鸣铭',
+    'mo 摸模末莫墨默磨膜魔','mou 某谋','mu 母目木幕牧墓慕亩',
+    'na 那哪拿纳娜呐','nai 奶耐乃','nan 难南男楠','nao 脑闹恼挠','ne 呢','nei 内','neng 能',
+    'ni 你尼泥妮拟逆匿腻','nian 年念粘碾','niang 娘','niao 鸟尿','nie 捏','nin 您','ning 宁凝',
+    'niu 牛扭纽妞','nong 农弄浓','nu 努怒奴','nv 女','nuan 暖','nuo 诺挪',
+    'o 哦噢','ou 欧偶呕殴',
+    'pa 怕爬趴帕','pai 拍排派牌徘','pan 判盘盼攀叛','pang 旁胖庞','pao 跑炮泡抛袍',
+    'pei 陪配培赔佩','pen 喷盆','peng 朋碰捧棚鹏膨','pi 皮批披疲脾匹劈屁','pian 片篇偏骗',
+    'piao 票漂飘','pie 撇','pin 品拼贫频聘','ping 平评瓶凭苹屏乒','po 破坡泼颇婆迫','pu 普铺扑朴谱葡',
+    'qi 起其七期气奇齐骑妻旗汽器弃欺棋祈','qia 恰','qian 前千钱浅签欠牵迁潜歉','qiang 强枪墙抢腔',
+    'qiao 桥巧悄敲瞧','qie 切且窃茄','qin 亲琴勤侵秦寝芹','qing 请情青清轻晴庆倾顷','qiong 穷',
+    'qiu 求球秋丘邱','qu 去取区曲趣屈驱娶渠','quan 全权圈拳劝券泉','que 却确缺雀','qun 群裙',
+    'ran 然染燃','rang 让嚷','rao 绕扰','re 热惹','ren 人认任仁忍韧刃','reng 仍扔','ri 日',
+    'rong 容荣融绒溶','rou 肉柔揉','ru 如入乳辱儒','ruan 软','rui 锐瑞','run 润','ruo 若弱',
+    'sa 撒洒','sai 赛塞腮','san 三散伞叁','sang 丧桑嗓','sao 扫骚嫂','se 色涩','sen 森','seng 僧',
+    'sha 杀沙啥傻纱刹','shai 晒筛','shan 山善闪衫扇删珊煽','shang 上商伤尚赏晌','shao 少烧绍稍勺哨',
+    'she 社设射舍蛇摄涉奢','shei 谁','shen 身深神什甚审申伸慎肾','sheng 生声胜升圣省剩绳盛',
+    'shi 是时事实十事市使世式试师诗失识史始士示视室食施湿石拾适释','shou 手受收首守瘦寿授售兽',
+    'shu 书数树输术舒熟属鼠叔束述蔬','shua 刷耍','shuai 帅摔甩','shuan 栓','shuang 双爽霜',
+    'shui 水谁睡税','shun 顺瞬','shuo 说硕','si 四死思司丝私似寺撕斯','song 送松宋颂诵',
+    'sou 搜艘','su 素速苏诉宿俗塑肃','suan 算酸蒜','sui 岁随虽碎遂穗','sun 孙损笋','suo 所缩索锁',
+    'ta 他她它塔踏塌','tai 太台抬态胎泰','tan 谈弹探坦叹摊贪滩','tang 堂糖躺汤唐烫',
+    'tao 套讨逃桃涛陶淘','te 特','teng 疼腾藤','ti 体提题踢替梯剃','tian 天田甜填添舔',
+    'tiao 条跳调挑','tie 铁贴帖','ting 听停厅挺庭亭','tong 同通痛童统桶筒铜','tou 头投偷透',
+    'tu 图土突途徒兔吐涂屠','tuan 团','tui 推退腿','tun 吞屯','tuo 托脱拖妥拓驼',
+    'wa 哇挖娃瓦袜','wai 外歪','wan 完万晚玩弯丸碗挽腕','wang 王往忘望网亡旺',
+    'wei 为位未味委围威危微维唯尾胃谓伟卫违','wen 问文闻温稳吻纹蚊','weng 翁','wo 我握窝卧沃',
     'wu 无五物务误屋舞武午雾吴污乌悟勿',
-    'xi 西系细喜习希息洗席吸戏稀溪悉惜牺',
-    'xia 下夏吓虾霞峡狭',
-    'xian 先现线显险县鲜限闲献陷贤嫌',
-    'xiang 想向相像香乡响项详享箱象翔',
-    'xiao 小笑校效消晓销肖孝萧',
-    'xie 些写谢协鞋血斜械泄携歇',
-    'xin 心新信欣辛薪',
-    'xing 行性形星兴幸型姓醒刑',
-    'xiong 兄雄胸熊',
-    'xiu 休修秀绣羞',
-    'xu 需许须续虚序叙绪蓄',
-    'xuan 选宣旋悬玄',
-    'xue 学雪血穴',
-    'xun 寻讯迅训巡询循',
-    'ya 呀压牙亚雅鸭押芽丫',
-    'yan 眼言严烟沿演验颜燕延炎盐研掩厌宴',
-    'yang 样阳养杨洋扬羊央仰氧',
-    'yao 要药摇咬腰邀谣遥姚',
-    'ye 也业夜叶爷野页液',
-    'yi 一以已意义议医衣依移疑易益艺亦亿忆异遗乙',
-    'yin 因音引印银阴饮隐殷',
-    'ying 应英影营迎硬赢婴鹰樱蝇',
-    'yo 哟',
-    'yong 用永勇拥涌庸泳',
-    'you 有又由友右游优油尤幽邮幼诱忧犹',
-    'yu 于与语雨鱼玉遇育预域欲余予宇宙狱羽愚',
-    'yuan 元远愿园员原圆院源缘援',
-    'yue 月越约跃阅岳',
-    'yun 运云允晕孕',
-    'za 杂咋砸',
-    'zai 在再载灾栽仔',
-    'zan 咱暂赞攒',
-    'zang 脏葬藏',
-    'zao 早造遭糟枣灶澡',
-    'ze 则责泽择',
-    'zei 贼',
-    'zen 怎',
-    'zeng 增曾赠',
-    'zha 炸扎渣眨闸',
-    'zhai 摘窄债宅',
-    'zhan 站战占展斩粘沾盏',
-    'zhang 张长章掌涨帐账丈障',
-    'zhao 找照招着赵召兆',
-    'zhe 这着者折哲遮浙',
-    'zhen 真阵镇针震珍诊枕振',
-    'zheng 正整政争征证睁郑挣',
-    'zhi 之只知直至制指治志纸支职植值止致质置智执址枝织',
-    'zhong 中种重终众钟忠肿',
-    'zhou 周州洲轴舟皱昼粥',
-    'zhu 主住注助竹猪逐祝筑著驻珠煮',
-    'zhua 抓',
-    'zhuan 转专传赚砖',
-    'zhuang 装状庄撞壮',
-    'zhui 追坠',
-    'zhun 准',
-    'zhuo 桌捉卓',
-    'zi 子自字资紫姿滋仔兹',
-    'zong 总宗纵综',
-    'zou 走奏邹',
-    'zu 组足族租祖阻',
-    'zuan 钻',
-    'zui 最嘴醉罪',
-    'zun 尊遵',
-    'zuo 做作坐左座昨'
+    'xi 西系细喜习希息洗席吸戏稀溪悉惜牺','xia 下夏吓虾霞峡狭','xian 先现线显险县鲜限闲献陷贤嫌',
+    'xiang 想向相像香乡响项详享箱象翔','xiao 小笑校效消晓销肖孝萧','xie 些写谢协鞋血斜械泄携歇',
+    'xin 心新信欣辛薪','xing 行性形星兴幸型姓醒刑','xiong 兄雄胸熊','xiu 休修秀绣羞',
+    'xu 需许须续虚序叙绪蓄','xuan 选宣旋悬玄','xue 学雪血穴','xun 寻讯迅训巡询循',
+    'ya 呀压牙亚雅鸭押芽丫','yan 眼言严烟沿演验颜燕延炎盐研掩厌宴','yang 样阳养杨洋扬羊央仰氧',
+    'yao 要药摇咬腰邀谣遥姚','ye 也业夜叶爷野页液','yi 一以已意义议医衣依移疑易益艺亦亿忆异遗乙',
+    'yin 因音引印银阴饮隐殷','ying 应英影营迎硬赢婴鹰樱蝇','yo 哟','yong 用永勇拥涌庸泳',
+    'you 有又由友右游优油尤幽邮幼诱忧犹','yu 于与语雨鱼玉遇育预域欲余予宇宙狱羽愚',
+    'yuan 元远愿园员原圆院源缘援','yue 月越约跃阅岳','yun 运云允晕孕',
+    'za 杂咋砸','zai 在再载灾栽仔','zan 咱暂赞攒','zang 脏葬藏','zao 早造遭糟枣灶澡',
+    'ze 则责泽择','zei 贼','zen 怎','zeng 增曾赠','zha 炸扎渣眨闸','zhai 摘窄债宅',
+    'zhan 站战占展斩粘沾盏','zhang 张长章掌涨帐账丈障','zhao 找照招着赵召兆','zhe 这着者折哲遮浙',
+    'zhen 真阵镇针震珍诊枕振','zheng 正整政争征证睁郑挣','zhi 之只知直至制指治志纸支职植值止致质置智执址枝织',
+    'zhong 中种重终众钟忠肿','zhou 周州洲轴舟皱昼粥','zhu 主住注助竹猪逐祝筑著驻珠煮',
+    'zhua 抓','zhuan 转专传赚砖','zhuang 装状庄撞壮','zhui 追坠','zhun 准','zhuo 桌捉卓',
+    'zi 子自字资紫姿滋仔兹','zong 总宗纵综','zou 走奏邹','zu 组足族租祖阻','zuan 钻',
+    'zui 最嘴醉罪','zun 尊遵','zuo 做作坐左座昨'
   ].join('\n');
 
   var PY_WORDS_RAW = [
-    'nihao 你好',
-    'zaijian 再见',
-    'xiexie 谢谢',
-    'duibuqi 对不起',
-    'meiguanxi 没关系',
-    'wanshanghao 晚上好',
-    'zaoshanghao 早上好',
-    'wanan 晚安',
-    'shengrikuaile 生日快乐',
-    'xinniankuaile 新年快乐',
-    'woaini 我爱你',
-    'woxiangni 我想你',
-    'xiangni 想你',
-    'aini 爱你',
-    'haode 好的',
-    'haoba 好吧',
-    'keyi 可以',
-    'meiwenti 没问题',
-    'bushi 不是',
-    'shide 是的',
-    'zenmeyang 怎么样',
-    'weishenme 为什么',
-    'shenme 什么',
-    'zenme 怎么',
-    'zaina 在哪',
-    'zaiganma 在干嘛',
-    'ganma 干嘛',
-    'chifan 吃饭',
-    'shuijiao 睡觉',
-    'gongzuo 工作',
-    'xuexi 学习',
-    'shangban 上班',
-    'xiaban 下班',
-    'jintian 今天',
-    'mingtian 明天',
-    'zuotian 昨天',
-    'xianzai 现在',
-    'yihou 以后',
-    'yiqian 以前',
-    'keshi 可是',
-    'danshi 但是',
-    'suoyi 所以',
-    'yinwei 因为',
-    'ruguo 如果',
-    'haishi 还是',
-    'huozhe 或者',
-    'erqie 而且',
-    'ranhou 然后',
-    'zuihou 最后',
-    'yijing 已经',
-    'haiyou 还有',
-    'meiyou 没有',
-    'yiding 一定',
-    'keneng 可能',
-    'yinggai 应该',
-    'bixu 必须',
-    'xuyao 需要',
-    'xiangyao 想要',
-    'xihuan 喜欢',
-    'taoyan 讨厌',
-    'kaixin 开心',
-    'nanguo 难过',
-    'shengqi 生气',
-    'haipa 害怕',
-    'danxin 担心',
-    'jinzhang 紧张',
-    'fangxin 放心',
-    'zhuyi 注意',
-    'xiaoxin 小心',
-    'jiayou 加油',
-    'nuli 努力',
-    'chenggong 成功',
-    'shibai 失败',
-    'bangmang 帮忙',
-    'bangzhu 帮助',
-    'zhaogu 照顾',
-    'peiban 陪伴',
-    'xiangxin 相信',
-    'lijie 理解',
-    'yuanliang 原谅',
-    'zhenxi 珍惜',
-    'yongbao 拥抱',
-    'baobao 宝宝',
-    'qinaide 亲爱的',
-    'laopo 老婆',
-    'laogong 老公',
-    'nanpengyou 男朋友',
-    'nvpengyou 女朋友',
-    'pengyou 朋友',
-    'tongxue 同学',
-    'laoshi 老师',
-    'xuesheng 学生',
-    'jiaren 家人',
-    'baba 爸爸',
-    'mama 妈妈',
-    'gege 哥哥',
-    'jiejie 姐姐',
-    'didi 弟弟',
-    'meimei 妹妹',
-    'yeye 爷爷',
-    'nainai 奶奶',
-    'waigong 外公',
-    'waipo 外婆',
-    'shushu 叔叔',
-    'ayi 阿姨',
-    'zhege 这个',
-    'nage 那个',
-    'women 我们',
-    'nimen 你们',
-    'tamen 他们',
-    'ziji 自己',
-    'yiqi 一起',
-    'yizhi 一直',
-    'zhende 真的',
-    'queshi 确实',
-    'dangran 当然',
-    'biru 比如',
-    'zongshi 总是',
-    'jingchang 经常',
-    'youshi 有时',
-    'conglai 从来',
-    'yongyuan 永远',
-    'mingbai 明白',
-    'zhidao 知道',
-    'juede 觉得',
-    'renwei 认为',
-    'xiwang 希望',
-    'dengdai 等待',
-    'xuanze 选择',
-    'jueding 决定',
-    'kaishi 开始',
-    'jieshu 结束',
-    'wancheng 完成',
-    'zhunbei 准备',
-    'jixu 继续',
-    'tingzhi 停止',
-    'bangwo 帮我',
-    'gaosu 告诉',
-    'wenwen 问问',
-    'kankan 看看',
-    'tingshuo 听说',
-    'xiangqi 想起',
-    'wangji 忘记',
-    'jide 记得',
-    'cuoguo 错过',
-    'yudao 遇到',
-    'likai 离开',
-    'huilai 回来',
-    'chufa 出发',
-    'daoda 到达',
-    'renshi 认识',
-    'pengdao 碰到',
-    'zhaodao 找到',
-    'yonggan 勇敢',
-    'wenrou 温柔',
-    'keai 可爱',
-    'piaoliang 漂亮',
-    'shuaiqi 帅气',
-    'congming 聪明',
-    'shanliang 善良',
-    'chengshi 诚实',
-    'qinfen 勤奋',
-    'haochi 好吃',
-    'haowan 好玩',
-    'wuliao 无聊',
-    'youqu 有趣',
-    'wananshuijiao 晚安睡觉',
-    'haohaoxiuxi 好好休息',
-    'zhuyishenti 注意身体',
-    'duoheshui 多喝水',
-    'zaodianxiuxi 早点休息',
-    'xiangxinwo 相信我',
-    'wozaozhidao 我早知道',
-    'meishi 没事',
-    'bieku 别哭',
-    'wodengni 我等你',
-    'shouji 手机',
-    'diannao 电脑',
-    'dianhua 电话',
-    'xinxi 信息',
-    'xiaoxi 消息',
-    'pengyouquan 朋友圈',
-    'zhaopian 照片',
-    'shipin 视频',
-    'yinyue 音乐',
-    'dianying 电影',
-    'youxi 游戏',
-    'lvxing 旅行',
-    'gongyuan 公园',
-    'xuexiao 学校',
-    'yiyuan 医院',
-    'shangdian 商店',
-    'canting 餐厅',
-    'kafei 咖啡',
-    'naicha 奶茶',
-    'shuiguo 水果',
-    'mifan 米饭',
-    'miantiao 面条',
-    'zaofan 早饭',
-    'wufan 午饭',
-    'wanfan 晚饭',
-    'yexiao 夜宵',
-    'shengri 生日',
-    'liwu 礼物',
-    'jiehun 结婚',
-    'lianai 恋爱',
-    'fenxiang 分享',
-    'xinren 信任',
-    'ganqing 感情',
-    'gushi 故事',
-    'huiyi 回忆',
-    'yihan 遗憾',
-    'jianglai 将来',
-    'mengxiang 梦想',
-    'mubiao 目标',
-    'shixian 实现',
-    'xingfu 幸福',
-    'kuaile 快乐',
-    'jiankang 健康',
-    'pingan 平安',
-    'shunli 顺利',
-    'wanmei 完美',
-    'youxiu 优秀',
-    'pingjing 平静',
-    'anwei 安慰',
-    'guli 鼓励',
-    'zhichi 支持',
-    'limao 礼貌',
-    'zunjing 尊敬',
-    'ganxie 感谢',
-    'baqian 抱歉',
-    'haoyun 好运',
-    'shunjian 瞬间',
-    'yongjiu 永久',
-    'yisheng 一生',
-    'shijie 世界',
-    'weilai 未来',
-    'guoqu 过去',
-    'xintiao 心跳',
-    'weixiao 微笑',
-    'yanlei 眼泪',
-    'qidai 期待',
-    'xingfen 兴奋',
-    'chenmo 沉默',
-    'yuqi 语气',
-    'shengyin 声音',
-    'yanse 颜色',
-    'tianqi 天气',
-    'xiayu 下雨',
-    'xiatian 夏天',
-    'dongtian 冬天',
-    'chuntian 春天',
-    'qiutian 秋天',
-    'yangguang 阳光',
-    'xingxing 星星',
-    'yueliang 月亮',
-    'taiyang 太阳',
-    'haiyang 海洋',
-    'shanmai 山脉',
-    'chengshi 城市',
-    'nongcun 农村',
-    'jiaxiang 家乡'
+    'nihao 你好','zaijian 再见','xiexie 谢谢','duibuqi 对不起','meiguanxi 没关系',
+    'wanshanghao 晚上好','zaoshanghao 早上好','wanan 晚安','shengrikuaile 生日快乐','xinniankuaile 新年快乐',
+    'woaini 我爱你','woxiangni 我想你','xiangni 想你','aini 爱你',
+    'haode 好的','haoba 好吧','keyi 可以','meiwenti 没问题','bushi 不是','shide 是的',
+    'zenmeyang 怎么样','weishenme 为什么','shenme 什么','zenme 怎么','zaina 在哪',
+    'zaiganma 在干嘛','ganma 干嘛','chifan 吃饭','shuijiao 睡觉','gongzuo 工作','xuexi 学习',
+    'shangban 上班','xiaban 下班','jintian 今天','mingtian 明天','zuotian 昨天',
+    'xianzai 现在','yihou 以后','yiqian 以前','keshi 可是','danshi 但是','suoyi 所以',
+    'yinwei 因为','ruguo 如果','haishi 还是','huozhe 或者','erqie 而且','ranhou 然后',
+    'zuihou 最后','yijing 已经','haiyou 还有','meiyou 没有','yiding 一定','keneng 可能',
+    'yinggai 应该','bixu 必须','xuyao 需要','xiangyao 想要','xihuan 喜欢','taoyan 讨厌',
+    'kaixin 开心','nanguo 难过','shengqi 生气','haipa 害怕','danxin 担心','jinzhang 紧张',
+    'fangxin 放心','zhuyi 注意','xiaoxin 小心','jiayou 加油','nuli 努力','chenggong 成功',
+    'shibai 失败','bangmang 帮忙','bangzhu 帮助','zhaogu 照顾','peiban 陪伴','xiangxin 相信',
+    'lijie 理解','yuanliang 原谅','zhenxi 珍惜','yongbao 拥抱','baobao 宝宝','qinaide 亲爱的',
+    'laopo 老婆','laogong 老公','nanpengyou 男朋友','nvpengyou 女朋友','pengyou 朋友',
+    'tongxue 同学','laoshi 老师','xuesheng 学生','jiaren 家人','baba 爸爸','mama 妈妈',
+    'gege 哥哥','jiejie 姐姐','didi 弟弟','meimei 妹妹','yeye 爷爷','nainai 奶奶',
+    'waigong 外公','waipo 外婆','shushu 叔叔','ayi 阿姨','zhege 这个','nage 那个',
+    'women 我们','nimen 你们','tamen 他们','ziji 自己','yiqi 一起','yizhi 一直',
+    'zhende 真的','queshi 确实','dangran 当然','biru 比如','zongshi 总是','jingchang 经常',
+    'youshi 有时','conglai 从来','yongyuan 永远','mingbai 明白','zhidao 知道','juede 觉得',
+    'renwei 认为','xiwang 希望','dengdai 等待','xuanze 选择','jueding 决定','kaishi 开始',
+    'jieshu 结束','wancheng 完成','zhunbei 准备','jixu 继续','tingzhi 停止','bangwo 帮我',
+    'gaosu 告诉','wenwen 问问','kankan 看看','tingshuo 听说','xiangqi 想起','wangji 忘记',
+    'jide 记得','cuoguo 错过','yudao 遇到','likai 离开','huilai 回来','chufa 出发',
+    'daoda 到达','renshi 认识','pengdao 碰到','zhaodao 找到','yonggan 勇敢','wenrou 温柔',
+    'keai 可爱','piaoliang 漂亮','shuaiqi 帅气','congming 聪明','shanliang 善良','chengshi 诚实',
+    'qinfen 勤奋','haochi 好吃','haowan 好玩','wuliao 无聊','youqu 有趣',
+    'wananshuijiao 晚安睡觉','haohaoxiuxi 好好休息','zhuyishenti 注意身体','duoheshui 多喝水',
+    'zaodianxiuxi 早点休息','xiangxinwo 相信我','wozaozhidao 我早知道','meishi 没事','bieku 别哭',
+    'wodengni 我等你','shouji 手机','diannao 电脑','dianhua 电话','xinxi 信息','xiaoxi 消息',
+    'pengyouquan 朋友圈','zhaopian 照片','shipin 视频','yinyue 音乐','dianying 电影',
+    'youxi 游戏','lvxing 旅行','gongyuan 公园','xuexiao 学校','yiyuan 医院','shangdian 商店',
+    'canting 餐厅','kafei 咖啡','naicha 奶茶','shuiguo 水果','mifan 米饭','miantiao 面条',
+    'zaofan 早饭','wufan 午饭','wanfan 晚饭','yexiao 夜宵','shengri 生日','liwu 礼物',
+    'jiehun 结婚','lianai 恋爱','fenxiang 分享','xinren 信任','ganqing 感情','gushi 故事',
+    'huiyi 回忆','yihan 遗憾','jianglai 将来','mengxiang 梦想','mubiao 目标','shixian 实现',
+    'xingfu 幸福','kuaile 快乐','jiankang 健康','pingan 平安','shunli 顺利','wanmei 完美',
+    'youxiu 优秀','pingjing 平静','anwei 安慰','guli 鼓励','zhichi 支持','limao 礼貌',
+    'zunjing 尊敬','ganxie 感谢','baqian 抱歉','haoyun 好运','shunjian 瞬间','yongjiu 永久',
+    'yisheng 一生','shijie 世界','weilai 未来','guoqu 过去','xintiao 心跳','weixiao 微笑',
+    'yanlei 眼泪','qidai 期待','xingfen 兴奋','chenmo 沉默','yuqi 语气','shengyin 声音',
+    'yanse 颜色','tianqi 天气','xiayu 下雨','xiatian 夏天','dongtian 冬天','chuntian 春天',
+    'qiutian 秋天','yangguang 阳光','xingxing 星星','yueliang 月亮','taiyang 太阳',
+    'haiyang 海洋','shanmai 山脉','chengshi 城市','nongcun 农村','jiaxiang 家乡'
   ].join('\n');
 
-  /** 解析「拼音 内容」行式词库 */
   function parseDictLines(raw) {
     var map = Object.create(null);
     var lines = String(raw || '').split('\n');
@@ -1779,7 +1406,6 @@ input, textarea {
   var PY_SINGLE = parseDictLines(PY_SINGLE_RAW);
   var PY_WORDS  = parseDictLines(PY_WORDS_RAW);
 
-  /** 转换一段连续拼音（无空格）为中文 */
   function convertSegment(seg) {
     var n = seg.length;
     var out = [];
@@ -1788,7 +1414,6 @@ input, textarea {
     while (i < n) {
       var done = false;
 
-      // 优先匹配词组（长的先试）
       var maxW = Math.min(18, n - i);
       for (var L = maxW; L >= 2; L--) {
         var w = seg.substr(i, L);
@@ -1801,7 +1426,6 @@ input, textarea {
       }
       if (done) continue;
 
-      // 再匹配单音节
       var maxS = Math.min(6, n - i);
       for (var L2 = maxS; L2 >= 1; L2--) {
         var s2 = seg.substr(i, L2);
@@ -1814,14 +1438,12 @@ input, textarea {
       }
       if (done) continue;
 
-      // 无法解析 —— 整段原样返回
       return seg;
     }
 
     return out.join('');
   }
 
-  /** 整串拼音转中文（支持空格分词，也支持连写） */
   function convertPinyin(raw) {
     if (!raw) return '';
 
@@ -2405,7 +2027,7 @@ input, textarea {
   }
 
   /* ============================================================
-     字卡页面 —— 拼音生成
+     字卡页面 —— TA 拼音写卡
      ============================================================ */
   function openPinyinPanel(open) {
     var panel = $('pinyinPanel');
@@ -2429,11 +2051,11 @@ input, textarea {
     $('pinyinResult').value = out;
 
     if (!src.trim()) {
-      hint.textContent = '输入拼音试试';
+      hint.textContent = 'TA 正在等待输入…';
     } else if (!out) {
       hint.textContent = '没有识别到内容';
     } else {
-      hint.textContent = '已转换 · 可修改后保存';
+      hint.textContent = '已转成中文 · 可修改后保存';
     }
   }
 
@@ -2441,7 +2063,7 @@ input, textarea {
     var text = $('pinyinResult').value.trim();
 
     if (!text) {
-      showToast('还没有可保存的内容');
+      showToast('TA 还没写下内容');
       return;
     }
 
@@ -2461,15 +2083,77 @@ input, textarea {
 
     $('pinyinInput').value = '';
     $('pinyinResult').value = '';
-    $('pinyinHint').textContent = '已保存 · 继续输入拼音';
+    $('pinyinHint').textContent = '已存为字卡 · TA 可以继续写';
 
-    showToast('已保存为字卡');
+    showToast('已存为 TA 的字卡');
   }
 
   function clearPinyinPanel() {
     $('pinyinInput').value = '';
     $('pinyinResult').value = '';
-    $('pinyinHint').textContent = '输入拼音试试';
+    $('pinyinHint').textContent = 'TA 正在等待输入…';
+  }
+
+  /* ============================================================
+     TA 写话浮层 —— 直接发消息
+     ============================================================ */
+  function openTaWrite() {
+    $('taWriteMask').hidden = false;
+    doTaWriteConvert();
+    setTimeout(function () {
+      try { $('taWriteInput').focus(); } catch (e) { /* ignore */ }
+    }, 120);
+  }
+
+  function closeTaWrite() {
+    $('taWriteMask').hidden = true;
+    $('taWriteInput').value = '';
+    $('taWriteResult').value = '';
+    $('taWriteHint').textContent = 'TA 正在等待输入…';
+  }
+
+  function doTaWriteConvert() {
+    var src = $('taWriteInput').value;
+    var out = convertPinyin(src);
+    var hint = $('taWriteHint');
+
+    $('taWriteResult').value = out;
+
+    if (!src.trim()) {
+      hint.textContent = 'TA 正在等待输入…';
+    } else if (!out) {
+      hint.textContent = '没有识别到内容';
+    } else {
+      hint.textContent = '已转成中文 · 可修改后发送';
+    }
+  }
+
+  function sendTaWrite() {
+    var text = $('taWriteResult').value.trim();
+
+    if (!text) {
+      showToast('TA 还没想好说什么');
+      return;
+    }
+
+    // 取消任何正在进行的自动回复，避免插队
+    if (replyTimer) {
+      clearTimeout(replyTimer);
+      replyTimer = null;
+    }
+    hideTyping();
+
+    // 直接作为 TA 的消息发出
+    addMessage('ta', clampText(text, MAX_CARD_LEN));
+    scrollToBottom(true);
+
+    closeTaWrite();
+  }
+
+  function clearTaWrite() {
+    $('taWriteInput').value = '';
+    $('taWriteResult').value = '';
+    $('taWriteHint').textContent = 'TA 正在等待输入…';
   }
 
   /* ============================================================
@@ -2608,6 +2292,28 @@ input, textarea {
 
     $('btnSend').addEventListener('click', sendMessage);
 
+    /* ---------- TA 写话浮层 ---------- */
+    $('btnOpenTaWrite').addEventListener('click', openTaWrite);
+    $('btnCloseTaWrite').addEventListener('click', closeTaWrite);
+
+    $('taWriteInput').addEventListener('input', doTaWriteConvert);
+
+    $('btnTaWriteSend').addEventListener('click', sendTaWrite);
+    $('btnTaWriteClear').addEventListener('click', clearTaWrite);
+
+    $('taWriteInput').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        doTaWriteConvert();
+        sendTaWrite();
+      }
+    });
+
+    // 点击遮罩空白处关闭
+    $('taWriteMask').addEventListener('click', function (e) {
+      if (e.target === $('taWriteMask')) closeTaWrite();
+    });
+
     /* ---------- 打开二级页面 ---------- */
     $('btnOpenCards').addEventListener('click', function () {
       renderCards();
@@ -2654,7 +2360,7 @@ input, textarea {
     $('btnBatchImport').addEventListener('click', importBatch);
     $('btnBatchFile').addEventListener('click', readTextFile);
 
-    /* ---------- 字卡：拼音生成 ---------- */
+    /* ---------- 字卡：TA 拼音写卡 ---------- */
     $('btnTogglePinyin').addEventListener('click', function () {
       openPinyinPanel($('pinyinPanel').hidden);
     });
@@ -2736,6 +2442,7 @@ input, textarea {
         updateBatchCount();
       }
       clearPinyinPanel();
+      closeTaWrite();
 
       showToast('已重置全部数据');
     });
